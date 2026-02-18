@@ -1,0 +1,27 @@
+{
+  "feature_columns": [
+    "性别",
+    "矫正方式",
+    "筛查区",
+    "sph_r_t1",
+    "age_t1",
+    "sph_r_t2",
+    "age_t2",
+    "sph_r_t3",
+    "age_t3",
+    "sph_r_t4",
+    "age_t4",
+    "sph_r_t5",
+    "age_t5",
+    "sph_r_t6",
+    "age_t6",
+    "sph_r_t7",
+    "age_t7",
+    "target_age"
+  ],
+  "categorical_columns": [
+    "性别",
+    "筛查区",
+    "矫正方式"
+  ]
+}
