@@ -3,10 +3,11 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-# 导入你上传的两个程序
-import final_shape_migong as migong
-import final_shape_sym as sym
+from shape import final_shape_migong as migong
+from shape import final_shape_sym as sym
 
+plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]  # 适配不同系统的中文字体
+plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示为方块的问题
 
 def read_image(path: str, flags=cv2.IMREAD_UNCHANGED):
     img = cv2.imread(path, flags)
@@ -87,14 +88,16 @@ def main():
     sym_out_dir = run_sym()
 
     # 2. 读取第一组图片：maze_roi.png 与 maze_mask.png
-    maze_roi_path = os.path.join(maze_out_dir, "maze_roi.png")
+    # maze_roi_path = os.path.join(maze_out_dir, "maze_roi.png")
+    maze_roi_path = "data/34migong.png"
     maze_mask_path = os.path.join(maze_out_dir, "maze_mask.png")
 
     maze_roi = read_image(maze_roi_path)
     maze_mask = read_image(maze_mask_path)
 
     # 3. 读取第二组图片：sym_preprocessed_white / sym_blue_mask / sym_helper_mask_completed
-    sym_preprocessed_white_path = os.path.join(sym_out_dir, "sym_preprocessed_white.png")
+    # sym_preprocessed_white_path = os.path.join(sym_out_dir, "sym_preprocessed_white.png")
+    sym_preprocessed_white_path = "data/35duichen.png"
     sym_blue_mask_path = os.path.join(sym_out_dir, "sym_blue_mask.png")
     sym_helper_mask_completed_path = os.path.join(sym_out_dir, "sym_helper_mask_completed.png")
 
@@ -105,19 +108,19 @@ def main():
     # 4. 按要求展示
     show_group(
         images=[maze_roi, maze_mask],
-        titles=["maze_roi.png", "maze_mask.png"],
-        fig_title="Maze Results",
+        titles=["原始迷宫", "迷宫线条"],
+        fig_title="迷宫图形",
         figsize=(12, 6)
     )
 
     show_group(
         images=[sym_preprocessed_white, sym_blue_mask, sym_helper_mask_completed],
         titles=[
-            "sym_preprocessed_white.png",
-            "sym_blue_mask.png",
-            "sym_helper_mask_completed.png"
+            "原始对称游戏",
+            "对称图形",
+            "辅助线框"
         ],
-        fig_title="Symmetry Results",
+        fig_title="对称图形",
         figsize=(18, 6)
     )
 
