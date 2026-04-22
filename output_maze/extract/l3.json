@@ -52,6 +52,10 @@
       "F3_cross_contribution": 0.0,
       "channel_area": 916567
     },
+    "circle_center_xy": null,
+    "outer_ring_radius": null,
+    "num_channel_components_before_filter": null,
+    "C1_method": "hough_user",
     "params": {
       "sample_step": 40.0,
       "hit_radius": 12.0,
@@ -63,7 +67,9 @@
       "r_solution_channel": 28,
       "entry_corner_size": 105,
       "line_thickness": 3,
-      "skip_rows": 3
+      "skip_rows": 3,
+      "game_type": "maze",
+      "circle_scan_entry": null
     }
   }
 }

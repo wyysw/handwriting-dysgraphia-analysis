@@ -1,0 +1,148 @@
+我：阅读shiyan_v1.1.md了解我需要完成的项目，其余的文件按需解读。现在我将要开始“阶段2”的实现。上传的l4.txt、l3.txt是方形迷宫绘制轨迹。回答针对方形迷宫开始，暂不考虑圆形迷宫。请根据“阶段2”的详细说明开始实现代码。你应该从逻辑上分析该从哪部分代码开始依次实现，不一定按照文档顺序生成，也不用一次性生成。如果有需要补充或确认的内容，向我提出来。
+claude: 
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+我已经通读了 `shiyan_v1_1.md`、`sym_feature_extractor.py`、`sym_analyze3.py` 和 `analyze.py`，对阶段 2 的目标和现有基础有了清晰理解。在开始写代码前，让我先理一下逻辑顺序，并和你确认几件事。
+
+## 阶段 2 实现的逻辑分解
+
+按依赖关系，阶段 2 应分成三个相对独立的层次（不严格按文档顺序）：
+
+| 层次 | 对应文档 | 性质 | 依赖 |
+|---|---|---|---|
+| ① 公共库 `features/stroke_utils.py` | 4.3.4 | 把已成熟的 C1/C2/C3 + bbox 映射 + 渲染 + Hough 抽出来 | sym_feature_extractor 已有，纯搬迁 |
+| ② 迷宫几何模块（含 solve_maze_path） | 4.3.1 + 4.3.2 | **本阶段最核心新工作**，与轨迹无关 | 仅依赖 maze_mask.png |
+| ③ 迷宫特征提取主程序 | 4.3.3 + 4.3 主入口 | F1–F4 用②的几何，C1–C3 调①的公共库 | 依赖 ① + ② + 用户轨迹 |
+
+**我建议的实现顺序**：先 ② → 再 ① → 最后 ③。理由：
+- ② 是全新算法，**风险最高**（floodFill / skeletonize / dijkstra 都需目视验证），先做出几何模块并可视化确认正确，可以避免后面所有 F 特征都建在错误几何上
+- ① 是机械搬运，写起来快但不直接产生可验证的结果，放后面也不耽误事
+- ③ 把前两者拼起来，并加可视化叠加用户轨迹
+
+每一步做完都立刻跑可视化检验。
+
+---
+
+## 在动手前，有 3 个问题需要确认
+[Artifacts: undefined]
+等你确认这三个问题后，我会按 `② 几何模块 → ① 公共库 → ③ 主提取器` 的顺序开始实现。每步实现后我会跑一次 l3 / l4 的可视化让你检查中间结果，确认无误再推进下一步。
+
+也在这里**预先说明**几个我打算做的设计决策（如果你不同意可以推翻）：
+
+1. **代码组织**：按文档目录结构写，使用相对导入 + try/except fallback，方便你直接放到 `features/` 下；同时让脚本能在当前扁平目录下直接跑通验证。
+
+2. **几何模块作为 `MazeGeometry` 数据类**：把 `channel_mask`、`canvas_mask`、`channel_skeleton`、`channel_dist`、`solution_polyline`、`solution_skeleton_mask`、`solution_channel_mask`、`entry_xy`、`exit_xy` 都打包到一个 dataclass 里，主入口从 `maze_mask_path` 一次构造，避免函数签名爆炸。
+
+3. **入口/出口检测**：先实现 105×105 简化版（按文档 4.3.2 的"简化实现"建议，从外框内顶点延伸的右上 / 左下方块），同时保留通用的 frame-ring 连通域 fallback，便于将来推广到圆形迷宫或入口位置不同的方形迷宫。
+
+4. **缓存 maze 几何**：迷宫几何只依赖 `maze_mask.png`，不依赖样本，可以按 mask 文件路径做内存级缓存，批量处理多个样本时不重复算 dijkstra。
+
+如果这几条没问题就不用回复，等你回答完上面三个 Q 我就开始动手。
+我：Q: Q1：用户绘制 PNG（用于 bbox 坐标对齐）l3.png/l4.png 是否存在？
+A: 有，但这次没上传（按 sym 流程实现，假设 l3.png/l4.png 路径与 .txt 同目录）
+
+Q: Q2：迷宫 F3 的归一化分母（文档说"标准面积"，但没明确指哪个）
+A: channel_mask 面积（全通道，更稳定）
+
+Q: Q3：C1 用的 channel_half_width（用户笔迹"投影到自身 Hough 直线"时允许的横向带宽）
+A: 暴露为参数，默认 20，先跑 l3/l4 看效果再调
+claude: 
+好，问题确认完毕。现在开始实施。先搭建目录结构、把需要的源文件就位，然后从**几何模块（②）**开始。
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+目录就位。先做一次 maze_mask 的属性探测，确认通道宽度等关键数值。
+[Artifacts: undefined]
+[Artifacts: undefined]
+测量结果：内框 bbox 是 `x∈[201,1004], y∈[152,1447]`，通道单格宽度约 **57 px**（半宽≈28）。文档里说的 `r=55` 估计指的是直径而非半径——我会用 28 作为默认 dilation radius 并加注释说明。
+[Artifacts: undefined]
+依赖齐全。现在开始写**几何模块（4.3.1 + 4.3.2）**。
+[Artifacts: undefined]
+立刻跑一次几何模块，做目视验证。
+[Artifacts: undefined]
+数据全部在预期范围内（解路径 4870 px ∈ 文档预估的 3000–5000 px）。看可视化：
+[Artifacts: undefined]
+几何看起来非常正确：
+
+- ✅ **入口（绿圈）和出口（红圈）** 落在右上 / 左下角
+- ✅ **解路径（亮绿宽带）** 从入口一路连贯到出口，正确避开了所有死胡同（注意右下角和中下部那两片"死胡同区域"都被路径忽略了）
+- ✅ **通道宽度** 视觉上和实际通道完美贴合，解路径恰好覆盖一个通道单元宽
+- ✅ **骨架（暗黄）** 在所有通道里都可见，整体连通
+- ✅ **内框 bbox（蓝框）** 紧扣外框
+
+几何模块通过验证。继续做**公共库 stroke_utils.py（4.3.4）**——把 C1/C2/C3 + 轨迹映射 + Hough 等通用逻辑抽出来。
+[Artifacts: undefined]
+快速验证 stroke_utils 能正确加载 l3/l4 并提取出与 sym 一致的 C3：
+[Artifacts: undefined]
+C3 ≈ 0.038（< 0.5 阈值，正常范围），l3/l4 各 1 个笔段（符合文档预期）。公共库通过验证。
+
+现在写**主提取器 maze_feature_extractor.py**。
+[Artifacts: undefined]
+跑 l3、l4 端到端测试，并产出可视化：
+[Artifacts: undefined]
+[Artifacts: undefined]
+[Artifacts: undefined]
+数值跑出来了，但**几个 F 特征的方向看起来反了**——障碍样本 l3 在 F3/F4/C1 上居然比正常样本 l4 表现更好。这可能是：
+1. 没有真实 l3.png/l4.png 时 inner_bbox fallback 把笔迹错位映射
+2. l3/l4 的实际绘制不像我假设的那样
+3. 标签可能反了
+
+立刻看可视化判断：
+[Artifacts: undefined]
+[Artifacts: undefined]
+很有意思的对比！让我看 C1 Hough 图，再仔细分析为何方向反了：
+[Artifacts: undefined]
+[Artifacts: undefined]
+C1 Hough 图非常说明问题——**l3 的笔迹明显比 l4 更抖**（视觉上），但 C1 数值反而 l3 略低。让我试一下文档推荐的迷宫专用 Hough 参数（threshold=20, minLineLength=50, maxLineGap=10），看看是否更能体现差异：
+[Artifacts: undefined]
+## 阶段 2 实现完成情况
+
+### ✅ 已完成的三个模块
+
+| 文件 | 角色 | 状态 |
+|---|---|---|
+| `features/maze_geometry.py` | ② 通道几何 + 解路径 | 通过可视化验证 |
+| `features/stroke_utils.py` | ① C1/C2/C3 + Hough + 渲染公共库 | 通过 sym 一致性验证 |
+| `features/maze_feature_extractor.py` | ③ F1-F4 + 主入口 | 端到端跑通 l3/l4 |
+
+### 📊 l3 vs l4 实测结果
+
+```
+sample  label  F1      F2      F3      F4      C1      C2  C3
+l3      1      0.051   0.282   0.017   0.145   0.462   0   0.037
+l4      0      0.043   0.298   0.035   0.238   0.505   0   0.038
+```
+
+### ⚠️ 发现的两个值得讨论的现象
+
+**1. 几何模块完全正确**（看 `_vis_geometry.png`）：解路径 4870 px、入口/出口正确、通道宽度匹配。
+
+**2. l3/l4 的 F 特征"方向反了"——但很可能不是 bug**：
+
+看可视化我意识到这两个样本反映了**完全不同的行为模式**：
+
+- **l3（标签=障碍）**：笔迹明显抖动（看 C1 Hough 图就一目了然），但**确实在尝试沿迷宫通道走**——所以 F4=0.145（通道外像素较少）
+- **l4（标签=正常）**：笔迹很干净直，但**走的是大圈套圈的捷径**，反复穿墙——所以 F4=0.238（通道外像素更多）
+
+这正好印证了文档强调的方法论："功能轴 F"和"控制轴 C"会捕捉不同维度，**必须双轴联合判别**。l3 在功能上完成度尚可但控制差，l4 在控制上很好但完全没在玩这个迷宫游戏。
+
+**3. C1 自身的悖论**（更值得关注）：因为 Hough 是从用户笔迹自身提取的，**笔迹越抖反而能拟合出越多短 Hough 线段，"解释"掉自身的抖动**。换迷宫专用 Hough 参数（`threshold=20, minLineLength=50, maxLineGap=10`）后 C1 反过来了：l3=0.523, l4=0.427——更符合视觉直觉。
+
+### 🤔 需要你决策的问题
+
+1. **C1 的默认 Hough 参数是否切换到迷宫专用版？** 我建议是。视觉上 l3 明显更抖，迷宫参数能体现这点。
+
+2. **F1 的 0.05 上限是不是问题？** 用户笔迹是 3px 粗，解通道是 57px 宽，**完美遍历的 F1 也只有约 0.053**。这意味着 F1 实际是个 "0–0.05" 的小动态范围。是否要改成 dilate(user_mask, 28) 后再算 IoU？
+
+3. **当前 l3/l4 是用 inner_bbox fallback 对齐的**，结果可能略有偏差。等你提供真实 l3.png/l4.png 后我再跑一遍校准的版本。
+
+要我继续推进哪个方向（调 Hough 参数 / 改 F1 算法 / 等真实 PNG），还是先验收这版代码？

@@ -398,29 +398,15 @@ def extract_maze_features(
     )
     F4 = compute_F4_offchannel_ratio(user_mask, geom.channel_mask)
 
-    # ---------- 6. C1 ----------
-    if game_type == "circle":
-        # ── 方案 A：圆形迷宫使用骨架距离残差法 ──────────────────────────
-        # （同时也是方案 C 的圆形实现；方案 C 中此分支扩展为 else 也执行本方法）
-        C1, c1_bad, c1_total = compute_C1_jitter_ratio_skeleton(
-            mapped_strokes, geom.channel_skeleton,
-            jitter_tol=jitter_tol,
-            channel_half_width=channel_half_width_C1,
-        )
-        user_hough_segments = []   # 骨架法不用 Hough，保留占位（可视化判断用）
-        c1_method = "skeleton_dist"
-    else:
-        # ── 方案 A：方形迷宫维持 Hough-on-user（现有实现）───────────────
-        user_hough_segments = extract_segments_from_hough(
-            user_mask, hough_params=C1_hough_params
-        )
-        C1, c1_bad, c1_total = compute_C1_jitter_ratio(
-            mapped_strokes, user_hough_segments,
-            jitter_tol=jitter_tol, channel_half_width=channel_half_width_C1,
-        )
-        c1_method = "hough_user"
+    # ---------- 6. C1（方案 C：三游戏统一使用骨架距离残差法）----------
+    C1, c1_bad, c1_total = compute_C1_jitter_ratio_skeleton(
+        mapped_strokes, geom.channel_skeleton,
+        jitter_tol=jitter_tol,
+        channel_half_width=channel_half_width_C1,
+    )
+    user_hough_segments = []   # 方案 C 不使用 Hough，保留占位
+    c1_method = "skeleton_dist"
 
-    # 辅助诊断：有效投影点 / 笔迹总点数
     n_user_pts = int(sum(len(s) for s in mapped_strokes))
     c1_projected_fraction = (
         float(c1_total) / float(n_user_pts) if n_user_pts > 0 else 0.0
@@ -530,19 +516,12 @@ def extract_maze_features(
             os.path.join(out_vis_dir, f"{sample_id}_feature_overlay.png"),
             hit_radius=hit_radius,
         )
-        # 3) C1 叠加图
-        if game_type == "circle":
-            _visualize_C1_skeleton(
-                user_mask, geom.channel_skeleton, mapped_strokes,
-                jitter_tol=jitter_tol, channel_half_width=channel_half_width_C1,
-                out_path=os.path.join(out_vis_dir, f"{sample_id}_C1_skeleton.png"),
-            )
-        else:
-            _visualize_C1_hough(
-                user_mask, user_hough_segments, mapped_strokes,
-                jitter_tol=jitter_tol, channel_half_width=channel_half_width_C1,
-                out_path=os.path.join(out_vis_dir, f"{sample_id}_C1_hough.png"),
-            )
+    # 3) C1 叠加图（方案 C：统一使用骨架可视化）
+    _visualize_C1_skeleton(
+        user_mask, geom.channel_skeleton, mapped_strokes,
+        jitter_tol=jitter_tol, channel_half_width=channel_half_width_C1,
+        out_path=os.path.join(out_vis_dir, f"{sample_id}_C1_skeleton.png"),
+    )
 
     return result
 
