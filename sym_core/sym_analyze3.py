@@ -16,11 +16,7 @@ except Exception:
     except Exception:
         analyze = None
 
-# ======
-# 完成模块1，2：形状大小，关键点
-# 模块3：线控能力
-# 模块4：线段闭合
-# ======
+
 
 Point = Tuple[int, int]
 BBox = Tuple[int, int, int, int]  # x1, y1, x2, y2

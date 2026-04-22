@@ -9,11 +9,11 @@ from pen import analyze
 from pen import pen_trajectory_plotter
 
 SKIP_ROWS = 3
-TXT_PATH = 'data/samples/sym/s3.txt'
-REF_PNG_PATH = 'data/samples/sym/s3.png'
-CANVAS_PATH = 'data/sym_helper_mask_completed.png'
-OUT_PNG_PATH = 'data/s3_on_sym_helper_red.png'
-OUT_SCRIPT_INFO = 'data/s3_on_sym_helper_info.txt'
+TXT_PATH = 'data/samples/maze/l4.txt'
+REF_PNG_PATH = 'data/samples/maze/l4.png'
+CANVAS_PATH = 'data/maze_mask.png'
+OUT_PNG_PATH = 'data/son.png'
+OUT_SCRIPT_INFO = 'data/on.txt'
 
 
 def get_visible_bbox_from_reference_png(ref_png_path):

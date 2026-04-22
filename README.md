@@ -1,5 +1,7 @@
 # Handwriting Dysgraphia Analysis
 
+---
+
 This repository contains the implementation for the undergraduate thesis:
 
 **面向书写障碍儿童的手写交互数据评估算法设计与实现**
@@ -10,18 +12,11 @@ This repository contains the implementation for the undergraduate thesis:
 
 ---
 
+## 一、游戏页面图片预处理
 
-# 模块1：游戏图形预处理模块（已完成）
-
-## 一、概述
-
-项目使用若干张标准化测评图纸（尺寸统一为 **1201 × 1601 像素**）作为儿童书写/绘图能力的评估素材，儿童在这些图纸上进行描摹、对称补画、走迷宫等任务，算法根据儿童笔迹与标准图形的偏差进行量化评估。
-
-**"图形提取模块"** 完成了项目的 **第一阶段工作**：
-将三张原始测评图中的 **标准答案参考结构（迷宫线条 / 对称辅助线）** 自动分割出来，生成干净的二值掩码，供后续的笔迹对齐、偏差测量、路径判定等算法直接使用。
-
-
-## 二、目录结构
+```
+python shape.py
+```
 
 ```
 project_root/
@@ -33,284 +28,105 @@ project_root/
 │   ├── __init__.py
 │   ├── final_shape_migong.py  # 方形迷宫提取
 │   ├── final_shape_sym.py     # 对称图辅助线提取
-│   └── final_shape_circle.py  # 圆形迷宫提取（新增）
+│   └── final_shape_circle.py  # 圆形迷宫提取
 ├── output_maze/shape_maze/    # 方形迷宫输出
 ├── output_sym/shape_sym/      # 对称图输出
 ├── output_circle/shape_circle/# 圆形迷宫输出
 └── shape.py                   # 统一调度脚本（执行并可视化）
 ```
 
+| 脚本 | 输入 | 关键输出 |
+|---|---|---|
+| `shape/final_shape_sym.py` | `data/35duichen.png` | `sym_blue_mask.png`（蓝色半边图形）, `sym_helper_mask_completed.png`（网格+对称轴+外框） |
+| `shape/final_shape_migong.py` | `data/34migong.png` | `maze_mask.png`（迷宫墙壁线条） |
+| `shape/final_shape_circle.py` | `data/36circle.png` | `circle_mask.png`（圆形迷宫墙壁线条） |
+| `shape.py` | — | 统一调度以上三个脚本 |
+
 所有输出掩码与原图保持 **相同的 1201 × 1601 尺寸**，背景像素为 0（黑），前景（被提取的线条）像素为 255（白）。
 
----
 
+## 二、Pen模块
 
-## 三、三个提取模块的职责与输出
+**from pen import pen_trajectory_plotter**
 
-### 3.1 方形迷宫提取 —— `final_shape_migong.py`
+```python
+def plot_stroke(stroke_data, xlim, ylim, ax=None, fig=None, font_prop=None, stroke_index=None, color=None):
+    """
+    在给定的坐标轴上绘制单个笔画。
 
-**输入**：`data/34migong.png`（方形迷宫图，四周带有小猪、房子等卡通装饰，迷宫被一个矩形粗边框包裹）
+    可重复调用以在同一个图上绘制多个笔画。
 
-**主入口**：`extract_maze(image_path, out_dir)`
+    参数:
+    stroke_data (dict): 包含单个笔画数据的字典。
+                        必须包含 'x', 'y', 'pressure' 键。
+    xlim (tuple): (xmin, xmax) 用于设置X轴范围。
+    ylim (tuple): (ymin, ymax) 用于设置Y轴范围。
+    ax (matplotlib.axes.Axes, optional): 要绘制到的坐标轴对象。
+                                         如果为 None, 将创建新的图形和坐标轴。
+    fig (matplotlib.figure.Figure, optional): 与 ax 关联的图形对象。
+                                              仅在 ax 不为 None 时需要传递。
+    font_prop (matplotlib.font_manager.FontProperties, optional):
+              用于图表中文显示的字体属性。如果为 None, 将尝试自动查找。
+    stroke_index (str, optional): 当前笔画的标识符, 用于标题或调试显示。
+    color (tuple or str, optional): 指定笔画的颜色, 例如 (r, g, b) 或 'red'。
+                                    若为None, 则使用基于压力值的颜色映射(viridis)，压力高的点颜色较亮。
 
-**处理流程**：
-
-1. **矩形外框定位**：对灰度图做阈值反转 + 膨胀，再用 `keep_largest_rectangle_contour` 找到最大且形状近似矩形（4~8 边）的轮廓，得到迷宫的 ROI 矩形。
-2. **线条提取**：CLAHE 增强后，用 **Blackhat 形态学变换** 作为主通道提取暗线，再用灰度阈值做弱线补充，融合得到初步线条掩码。
-3. **角落装饰清理**：`clean_corner_decorations` 在右上角（0.88–1.0 宽, 0–0.09 高）与左下角（0–0.1555 宽, 0.91–1.0 高）两个固定子区域内，通过连通域的面积、长宽比、填充率等形状特征，区分"线条型"和"色块型"组件，只删除卡通装饰而保留线条。
-4. **外框重建**：`rebuild_outer_border` 在 ROI 内重绘 13 像素粗的矩形外框，修复上一步误删的角落边框。
-5. **孤立短线删除**：`remove_isolated_short_segments` 以长度 ≤ 10 像素为阈值清除噪点级短线段。
-6. **回填全图**：ROI 内的掩码通过 `put_roi_back` 放回 1201×1601 画布。
-
-**关键输出文件**（位于 `output_maze/shape_maze/`）：
-
-| 文件 | 含义 | 后续算法使用 |
-|---|---|---|
-| `maze_mask.png` | **迷宫线条二值掩码**（1201×1601） | ✅ 主要输出，即"迷宫标准答案结构" |
-| `maze_roi.png` | 迷宫区域彩色裁剪 | 调试查看 |
-| `maze_only.png` | 仅保留线条的原图 | 调试查看 |
-| `debug/*.png` | 各中间步骤图 | 调试查看 |
-
----
-
-### 3.2 对称图辅助线提取 —— `final_shape_sym.py`
-
-**⚠ 注意：这个模块提取的不是"对称图形本身"，而是"对称补画任务的辅助参考结构"。**
-
-对称补画题型要求儿童根据一条虚线对称轴，把已给出的一半图形补画成完整的对称图形。原图中 **已给出的一半图形用蓝色折线绘制**，整个画面上还叠加了一套 **浅灰色的网格辅助线**、一条 **水平虚线对称轴** 和一个 **矩形外框**。本模块负责把这几类"参考结构"分别提取出来。
-
-**输入**：`data/35duichen.png`
-
-**主入口**：`extract_symmetry(image_path, out_dir, ignore_side_width=190, expected_width=1201, expected_height=1601, ignore_mode="white")`
-
-**处理流程**：
-
-1. **左右忽略区预处理**：测评图左右各 190 像素为题目说明区，用 `preprocess_ignore_side_regions` 将其涂白或设为透明，防止干扰后续提取。
-2. **蓝色折线提取**：`extract_blue_polyline` 通过 HSV 阈值（H∈[90,140]）提取原图的蓝色折线部分。
-3. **外框提取**：`extract_outer_box` 用灰度反转阈值找到大矩形外框。
-4. **原始网格 + 虚线提取**：`extract_grid_and_dashed` 在 ROI 内用 `inRange(190,245)` 提取浅灰色候选像素，再用水平/垂直形态学开运算分离出网格线，并用行积分峰值定位虚线。
-5. **网格补全**：`complete_grid_inside_outer_box` 对网格做列和/行和分析，用 `cluster_positions` 聚类确定竖线/横线位置，再：
-   - `remove_border_adjacent_lines`：删除与外框过近的首尾"伪辅助线"（阈值 0.75 × 正常间距）；
-   - `insert_mid_axis_if_needed`：当发现某个相邻间距明显偏大（> 正常间距的 1.6 倍）时，在中间补一条中轴线。
-6. **合并辅助线框**：把外框 + 补全网格 + 虚线合并为 `sym_helper_mask_completed.png`。
-
-**关键输出文件**（位于 `output_sym/shape_sym/`）：
-
-| 文件 | 含义 | 后续算法使用 |
-|---|---|---|
-| `sym_blue_mask.png` | **蓝色折线二值掩码**（1201×1601），即题目已给出的半边对称图形 | ✅ 用于判断儿童补画的一侧是否关于对称轴与之对应 |
-| `sym_helper_mask_completed.png` | **辅助线框二值掩码**：外框 + 补全网格 + 虚线对称轴合并 | ✅ 用于定位对称轴、网格坐标系 |
-| `sym_preprocessed_white.png` | 左右忽略区涂白后的彩色原图 | 调试查看 |
-| `sym_outer_box_mask.png` | 外框单独掩码 | 调试 |
-| `sym_grid_completed_mask.png` | 补全后的网格线单独掩码 | 调试 |
-| `sym_dashed_mask.png` | 虚线对称轴单独掩码 | 调试 |
-| `sym_grid_keypoints_preview_*.png` | 网格线位置检测结果 | 调试 |
-
-**关键可调参数（模块内顶部常量）**：
-- `IGNORE_SIDE_WIDTH = 190`：左右忽略区宽度
-- `DARK_THRESH = 100`：深色外框阈值
-- `GRID_GRAY_LOW/HIGH = 190/245`：浅灰网格阈值
-- `BORDER_NEAR_LINE_RATIO = 0.75`：边缘伪辅助线判定比例
-- `MID_AXIS_GAP_RATIO = 1.6`：中轴补线触发比例
-
----
-
-### 3.3 圆形迷宫提取 —— `final_shape_circle.py`
-
-**输入**：`data/36circle.png`（圆形迷宫图，白色矩形画布位于黑色/透明背景中央，迷宫线为黑色，出入口附近各有一个粉红色箭头）
-
-**主入口**：`extract_maze(image_path, out_dir)`
-
-**与方形迷宫的主要差异**：
-
-| 处理步骤 | 方形迷宫 | 圆形迷宫 |
-|---|---|---|
-| ROI 定位 | 找最大的深色矩形轮廓 | **找最大白色连通域**（背景是黑/透明，画布是白色矩形） |
-| 线条提取 | Blackhat + 灰度阈值 | 双阈值（强黑 + 弱灰），对比度足够时更简单稳定 |
-| 干扰物剔除 | 角落坐标法 + 形状分析清除小猪/房子 | **彩色检测**（R/G/B 三通道差异 > 25）剔除彩色箭头 |
-| 外框重建 | 重绘矩形外框 | **不需要**（圆形迷宫没有矩形外框）；反而要 `clean_canvas_border` 抹掉画布最外 2 像素的白色画布矩形边残留 |
-| 短线清除 | 相同 | 相同 |
-
-**处理流程**：
-
-1. **透明通道处理**：若输入为 RGBA，先把 `alpha == 0` 的像素置为黑色。
-2. **白色画布定位**：`locate_white_canvas`（阈值 240，闭运算核 15×15）找到最大白色连通域作为 ROI。
-3. **迷宫线提取**：`extract_circle_maze_lines`
-   - CLAHE 增强对比度；
-   - 双阈值（120 强黑 + 180 弱灰）融合；
-   - `build_colorful_mask`（RGB 三通道差异 > 25）识别彩色箭头，膨胀 5×5 后从线条掩码中扣除；
-   - 轻微水平/垂直闭运算保证曲线连续；
-   - 去除面积 < 15 的小噪点。
-4. **画布边缘清理**：`clean_canvas_border` 抹掉 ROI 最外 2 像素（阈值法易把白色画布边识别为线）。
-5. **孤立短线删除**：与方形迷宫共用同名逻辑，阈值 10 像素。
-6. **回填全图**。
-
-**关键输出文件**（位于 `output_circle/shape_circle/`）：
-
-| 文件 | 含义 | 后续算法使用 |
-|---|---|---|
-| `circle_mask.png` | **圆形迷宫线条二值掩码**（1201×1601） | ✅ 主要输出 |
-| `circle_roi.png` | 画布区域彩色裁剪 | 调试查看 |
-| `circle_only.png` | 仅保留线条的原图 | 调试查看 |
-| `debug/*.png` | 各中间步骤图 | 调试查看 |
-
----
-
-## 四、统一调度脚本 —— `shape.py`
-
-提供一个 `main()` 入口，依次：
-1. 调用 `run_maze()` → 生成方形迷宫输出；
-2. 调用 `run_sym()` → 生成对称图输出；
-3. 调用 `run_circle()` → 生成圆形迷宫输出；
-4. 用 matplotlib 并排展示：
-   - 第一组：原始方形迷宫 vs 方形迷宫线条
-   - 第二组：原始对称游戏 vs 对称图形（蓝色折线） vs 辅助线框
-   - 第三组：原始圆形迷宫 vs 圆形迷宫线条
-
-
----
-
-## 五、后续算法的对接规范
-
-
-后续开发（笔迹质量评估、路径偏差度量、对称性打分等）可以 **直接读取上述 `*_mask.png` 文件** 作为"标准答案结构"，无需重新运行提取：
-
-- **迷宫类任务**（方形、圆形）：把 `maze_mask.png` / `circle_mask.png` 作为墙壁约束，儿童笔迹越过这些像素即算作 **碰墙**；用距离变换可得到 **离墙距离** 作为稳度指标。
-- **对称补画任务**：
-  - `sym_blue_mask.png` 为题目已有的一半图形；
-  - `sym_helper_mask_completed.png` 中的虚线位置即对称轴；
-  - 儿童笔迹沿对称轴翻转后，与 `sym_blue_mask.png` 做 IoU / Chamfer 距离即可量化对称性。
-
-所有掩码均为 **8-bit 单通道 PNG**，前景 255 / 背景 0，尺寸严格 1201×1601，与原始测评图像素级对齐，可直接按 `(x, y)` 坐标使用，无需额外仿射。
-
----
-
-# 模块2：对称游戏模块（未完成，可修改）
-
-以下是目前针对对称游戏规则进行的尝试，不一定全部准确，允许后期进一步修改。
-
-## 一、模块整体架构
-
-对称游戏模块被设计为 **4 个评估子模块**（见 `sym_analyze3.py` 顶部注释 `19–23 行`）：
-
-| 子模块 | 评估维度 | 状态 |
-|---|---|---|
-| **子模块 1** | 形状 & 大小相似度 | ✅ 已完成 |
-| **子模块 2** | 关键点覆盖率 | ✅ 已完成 |
-| **子模块 3** | 线控能力（抖动/波浪） | ✅ 已完成 |
-| **子模块 4** | 线段闭合 | ❌ **未实现** |
-
-> 注意：文件顶部注释只写了"完成模块1, 2"，但代码中 `analyze_line_control()` 及相关 dataclass 已完整实现，说明**子模块 3 其实也已完成**，只是注释未同步更新。**真正尚未开始的是子模块 4**。
-
-文件名里的 "3" 应为迭代版本号（v3），而非"第3阶段"；输出目录 `stage1_2_3_4_output` 表明这一套 pipeline 原计划一次性输出四个子模块的全部结果。
-
----
-
-## 二、依赖关系
-
-```
-sym_analyze3.py   ──import──▶   pen/analyze.py
-       │
-       ├── 读取 shape 模块的输出：
-       │     ├─ sym_blue_mask.png              (对称图形标准答案)
-       │     └─ sym_helper_mask_completed.png  (辅助线框，含对称轴)
-       │
-       └── 读取用户数据：
-             ├─ {user}.png   (用户绘制图片，仅用于取 bbox 作坐标参照)
-             └─ {user}.txt   (用户的笔尖轨迹：x, y, pressure)
+    返回:
+    tuple: (fig, ax) 返回使用的图形和坐标轴对象。
+    """
 ```
 
-`analyze.py` 是通用轨迹处理工具，提供 `load_trajectory_data`、`split_into_strokes_simple`、自适应聚类等方法；在本模块中主要用到前两个函数（加载 + 分笔画），**尚未使用**其中的 `cluster_strokes_simple` 和 `refine_characters`（这两个是为多字符书写场景准备的）。
+**from pen import analyze**
 
----
+```python
+def load_trajectory_data(filepath, skip_rows=0):
+    """
+    从文件加载电子笔轨迹数据。
+    参数:
+        filepath (str): 数据文件路径。
+        skip_rows (int): 要跳过的文件开头行数。
+    返回:
+        dict or None: 成功时返回包含 'x', 'y', 'pressure' 的字典，失败时返回 None。
+    """
+```
 
-## 三、主入口 `run_stage1()` 的处理流水线
+```python
+def split_into_strokes_simple(data):
+    """
+    根据压力值是否为0, 将连续点序列分割为多个笔画。
+    压力 > 0 表示笔尖落下, 压力 = 0 表示提笔。
+    参数： data —— 包含 x, y, pressure 的字典。
+    返回：列表，每个元素是一个笔画字典，包含该笔画的 x, y, pressure 数组。
+    遍历压力序列，当压力 > 0 时将点加入当前笔画，
+    当压力 = 0 且当前笔画非空时，保存当前笔画并开始新笔画。
+    最后将最后一个笔画也加入列表。
+    """
+```
 
-输入 → 输出 的完整链路（对应 `run_stage1` 函数体）：
+```python
+def calculate_adaptive_threshold(strokes, k=2.0, min_threshold=300.0, max_threshold=2500.0):
+    """
+    基于笔画中心点的平均最近邻距离计算自适应聚类阈值。原理：阈值 = k * (所有笔画到其最近邻笔画中心的平均距离)
+    优点：直接反映笔画空间密度，适应不同书写大小和风格。
+    Parameters:
+        strokes: 笔画列表List of stroke dicts with 'x', 'y'
+        k: 缩放系数，建议初始值 1.8~2.5 （可调）
+        min_threshold / max_threshold: 安全边界，防止极端值
+    Returns:
+        float: 计算出的自适应阈值
+    """
+```
 
-1. **几何结构提取**：`detect_helper_geometry(helper_mask)` —— 从辅助线框掩码中通过行/列投影定位外框四边、内部网格、**水平对称轴 `axis_y`**，并计算网格步长 `step_x / step_y`。
 
-2. **坐标系对齐**：`map_trajectory_strokes_using_reference_bbox()` —— 用户 `.txt` 轨迹的坐标系与 1201×1601 画布不一致，通过 **"用户 png bbox ↔ 轨迹 bbox"** 做线性缩放，把轨迹点映射到画布坐标。
+## 三、对称游戏特征提取
 
-3. **翻转**：`reflect_mask_across_horizontal_axis()` / `reflect_strokes_across_horizontal_axis()` —— 以 `axis_y` 为轴翻转用户笔迹，使其与蓝色标准图形处于 **同一半边**，才能进行比对。
+```
+python features/sym_feature_extractor.py --txt data/samples/sym/{id}.txt --png data/samples/sym/{id}.png --blue output_sym/shape_sym/sym_blue_mask.png --helper output_sym/shape_sym/sym_helper_mask_completed.png  --out output_sym/extract/{id}.json --vis vis_{id}.png
+```
 
-4. **子模块 1（形状 & 大小）**：
-   - `tolerant_f1()`：两 mask 归一化到 256×256 后，各自膨胀 9 px 做带容差 F1，作为 **形状相似度**。
-   - `size_similarity()`：bbox 宽高比的均值，作为 **大小相似度**。
-   - 阈值默认 0.70 / 0.70，两者都过才算 `module1_pass`。
 
-5. **子模块 2（关键点）**：
-   - `extract_keypoints_from_target()`：在标准图形上取**"内部网格交点 ∩ 距离图形 ≤ 3 px"** 作为关键点（可选加相邻交点的中点）。
-   - `keypoint_coverage_score()`：翻转后的用户笔迹对每个关键点若距离 ≤ 6 px 即算命中，命中率 × 100 即为 `keypoint_score`。
+## 四、方形迷宫特征提取
 
-6. **子模块 3（线控 / 抖动）**：
-   - `_extract_target_segments_from_hough()`：用霍夫变换按 **水平 / 竖直 / ±45° 对角** 四类提取标准线段并合并。
-   - 对每条线段，把落在其"通道"（半宽约 `step × 0.10`）内的用户点投影到线段局部坐标 (s, d)。
-   - 对 d 做移动平均得到趋势，`|残差| > jitter_tol` 的连续段计为一次抖动，产生 `jitter_ratio / major_jitter_ratio / jitter_episode_count` 等指标。
-   - 另有一条 **振荡检测** 分支：综合符号变号次数、平均残差、曲折度判断是否存在波浪线。
-   - 最终分数：`100 × (1 − min(1, jitter_ratio + 0.6 × major_ratio))`。
-
-7. **子模块 4（线段闭合）**：🚧 **完全未实现，连 dataclass 都没有定义**。预期是评估用户笔迹在线段连接处是否封闭（例如正方形四个角是否连上）。
-
-8. **产物输出**（全部写入 `out_dir`）：
-   - `stage1_overlay.png` 标准图形（蓝）+ 翻转后用户（白）+ 关键点（命中绿/未命中红）叠加
-   - `stage1_reflected_user_mask.png` 翻转后的用户 mask
-   - `stage1_target_mask.png` 标准答案 mask
-   - `stage1_line_control.png` 线控分析可视化（抖动点按严重度染色）
-   - `stage1_keypoints.png` 关键点命中情况
-   - `stage1_metrics.json` 所有数值指标
-
----
-
-## 四、下一步待完成工作
-
-基于以上分析，对称游戏模块剩余的开发任务大致是：
-
-1. **实现子模块 4（线段闭合）**：
-   - 定义 `SegmentClosureResult` dataclass。
-   - 在 `_cluster_junctions()` 已识别出的标准线段端点/交点周围取一个容差邻域，检查用户笔迹是否在该邻域内形成"连接"（例如两条相邻线段的端点处是否都有用户点、且两条笔画在此相连）。
-   - 把得分接入 `run_stage1()` 末尾的 `module_scores` 字典和 JSON 输出。
-   
-2. **顶部注释同步更新**（把"完成模块1,2"改成"完成模块1,2,3"）。
-
-3. **综合评分聚合**：目前 4 个子模块是平行计算各自分数，尚未定义**对称游戏总分**的加权公式。子模块 4 补完后，可以考虑加一个总分字段写入 `module_scores`。
-
-4. **（可选）README 补全**：`README.md` 的"模块2：对称游戏模块"一节是空的，建议在子模块 4 完成后把这一节也补上，结构参照模块 1 的写法。
-
----
-
-如果你希望下一步继续推进，最直接的起点是 **实现子模块 4（线段闭合）**——霍夫线段提取和交点聚类（`_cluster_junctions`）已经有现成结果可复用，新增代码量应该不大。
-
-# 模块3：迷宫游戏模块（未开始）
-
-# 模块4：分类器（未开始）
-
-# 后续的目标说明与存在的问题
-
-先不要直接生成代码，我需要你先梳理后续实验的思路并依次回答我提出的问题。
-
-## 项目目标
-
-实现一个轻量级分类器进行游戏质量分级，从特征抽取到落地分类。注意，这里虽然有三个游戏（画对称、圆形迷宫、方形迷宫），但是我希望这个分类器不是只能训练单一游戏，而是对这三个游戏都行之有效。
-
-我的数据很少，绝对无法训练深度神经网络。所以我的目标不是训练一个神经网络模型，而是强调“方法论”，即我进行的是方法论的研究，而分类器只是为了表征我的工作从一个纯工程项的抽取特征变成了有落地的分类！你在进行设计的时候必须考虑到我的数据限制和研究倾向是针对方法论的！作为本科生也无法完成完整的工程落地。
-
-## 研究主线
-特征->二分类诊断（患有书写障碍、未患有书写障碍）->分级（轻量级分类器）
-
-## 项目特点
-
-兼顾游戏结果（游戏目标完成度）和游戏过程（手写运动过程控制能力），这两个部分可以分别称之为“游戏级特征”和“笔画级特征”。
-
-【“将两个维度结合分析，能够有效区分两类性质不同的异常样本，避免单一维度判定的片面性”、“将与两类受损模式相关的代表性特征分别归入功能轴与控制轴，再相对正常样本参考分布计算偏离度，最后依据双轴得分的组合关系完成等级映射”。】
-
-后续会定义游戏过程和游戏结果具体的规则，我希望用到启发式编程进行代码实现。上一段【】内的文字是我的一篇参考文献，但是我的实现可以不根据这段描述进行，因为参考文献的数据为手写汉字数据，而我的数据为对称图形绘制和走迷宫游戏，所以在规则/特征上会有显著差异，我的实现也不会那么复杂。你绝对不能直接抄袭上面参考文献中描述的实验！
-
-我需要你结合我的实际情况分析我该使用什么样的方法组织各个特征、得到二分类诊断结果。你的组织方法不一定参考我已有的模块2的部分实现，可以根据经验选择更灵活的方法。而模块2实现的打分可以作为一个实验对照组存在：相比于给各个特征固定权值的加权法，是否有组织方法会得到更好的二分类诊断效果。当然，权重打分法也必须实现。具体设计参照后文。
-
-分类器输入层：
-语义层（游戏目标完成度/游戏级特征）+图像层（笔画级特征）
-
-效果验证方法：
-代入三个游戏，是否能够准确分级？
-
+```
+python features/maze_feature_extractor.py --txt data/samples/maze/{id}.txt --png data/samples/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id}
+```

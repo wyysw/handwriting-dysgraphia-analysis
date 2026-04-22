@@ -1,0 +1,69 @@
+{
+  "sample_id": "l4",
+  "game": "maze",
+  "F1": 0.08896,
+  "F2": 0.927419,
+  "F3": 0.0,
+  "F4": 0.0,
+  "C1": 0.366191,
+  "C2": 0.0,
+  "C3": 0.038032,
+  "meta": {
+    "num_strokes": 1,
+    "total_points": 9040,
+    "canvas_hw": [
+      1601,
+      1201
+    ],
+    "inner_bbox": [
+      201,
+      152,
+      1004,
+      1447
+    ],
+    "align_mode": "png_bbox",
+    "channel_area": 916567,
+    "channel_skeleton_length": 16362,
+    "solution_path_length_px": 4870,
+    "solution_channel_area": 271370,
+    "entry_xy": [
+      946,
+      209
+    ],
+    "exit_xy": [
+      258,
+      1389
+    ],
+    "num_skeleton_sample_pts": 124,
+    "keypoints_hit": 115,
+    "num_user_hough_segments": 23,
+    "C1_projected_points": 9039,
+    "C1_bad_points": 3310,
+    "C1_projected_fraction": 0.9999,
+    "C2_threshold": 40.028,
+    "C2_n_short_strokes": 0,
+    "C3_n_pressure_points": 9034,
+    "F3_detail": {
+      "illegal_dist_sum": 0.0,
+      "illegal_pixel_count": 0,
+      "n_cross_axis_pixels": 0,
+      "cross_penalty_coef": 0.0,
+      "F3_main_contribution": 0.0,
+      "F3_cross_contribution": 0.0,
+      "channel_area": 916567
+    },
+    "params": {
+      "sample_step": 40.0,
+      "hit_radius": 12.0,
+      "jitter_tol": 3.0,
+      "channel_half_width_C1": 20.0,
+      "C2_threshold_ratio": 0.02,
+      "C3_trim_ends": 3,
+      "r_wall": 2,
+      "r_solution_channel": 28,
+      "entry_corner_size": 105,
+      "line_thickness": 3,
+      "skip_rows": 3
+    }
+  }
+}
