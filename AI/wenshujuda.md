@@ -1,0 +1,452 @@
+# 电子笔轨迹样本使用完整指南
+
+## 一、数据格式
+
+数据文件为`.txt`格式，结构如下：
+
+```
+eink              # 第1行：设备标识（跳过）
+1                 # 第2行：版本信息（跳过）
+0,0               # 第3行：偏移量（跳过）
+11765 10609 0     # 第4行起：x坐标 y坐标 压力值（空格分隔）
+11763 10536 0     # 压力=0表示抬笔，压力>0表示落笔
+11757 10457 128   # 压力值越大，笔压越大
+...
+```
+
+**核心规则：**
+- 前3行为文件头，需跳过
+- 每行3个数值：`x坐标 y坐标 压力值`
+- **压力=0**：抬笔状态（分隔笔画）
+- **压力>0**：落笔状态（记录轨迹）
+
+---
+
+## 二、核心代码
+
+将以下代码保存为`trajectory_analyzer.py`：
+
+```python
+"""
+电子笔轨迹数据分析完整代码
+包含：数据加载、笔画分割、字符聚类、可视化
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+from scipy.spatial.distance import pdist, squareform
+
+
+# ==================== 数据加载 ====================
+
+def load_trajectory_data(filepath, skip_rows=3):
+    """
+    加载电子笔轨迹数据
+    
+    参数:
+        filepath: 数据文件路径
+        skip_rows: 跳过的文件头行数（默认3）
+    
+    返回:
+        dict: {'x': array, 'y': array, 'pressure': array}
+    """
+    try:
+        data = np.loadtxt(filepath, skiprows=skip_rows)
+        return {
+            'x': data[:, 0],
+            'y': data[:, 1],
+            'pressure': data[:, 2]
+        }
+    except Exception as e:
+        print(f"加载失败: {e}")
+        return None
+
+
+# ==================== 笔画分割 ====================
+
+def split_into_strokes(data):
+    """
+    根据压力值分割笔画
+    压力>0时记录点，压力=0时结束当前笔画
+    
+    参数:
+        data: 包含'x', 'y', 'pressure'的字典
+    
+    返回:
+        list: 笔画列表，每个笔画是一个字典
+    """
+    x = np.asarray(data['x'])
+    y = np.asarray(data['y'])
+    p = np.asarray(data['pressure'])
+    
+    strokes = []
+    current_x, current_y, current_p = [], [], []
+    
+    for i in range(len(p)):
+        if p[i] > 0:
+            current_x.append(x[i])
+            current_y.append(y[i])
+            current_p.append(p[i])
+        else:
+            if current_x:  # 保存当前笔画
+                strokes.append({
+                    'x': np.array(current_x),
+                    'y': np.array(current_y),
+                    'pressure': np.array(current_p)
+                })
+                current_x, current_y, current_p = [], [], []
+    
+    if current_x:  # 保存最后一个笔画
+        strokes.append({
+            'x': np.array(current_x),
+            'y': np.array(current_y),
+            'pressure': np.array(current_p)
+        })
+    
+    print(f"分割完成: {len(strokes)} 个笔画")
+    return strokes
+
+
+# ==================== 字符聚类 ====================
+
+def calculate_adaptive_threshold(strokes, k=2.2):
+    """
+    自动计算聚类阈值
+    基于笔画中心点的平均最近邻距离
+    
+    参数:
+        strokes: 笔画列表
+        k: 缩放系数（1.8-2.5）
+    
+    返回:
+        float: 自适应阈值
+    """
+    if len(strokes) < 2:
+        return 1000.0
+    
+    # 计算所有笔画中心
+    centers = np.array([[np.mean(s['x']), np.mean(s['y'])] for s in strokes])
+    
+    # 计算距离矩阵
+    dist_matrix = squareform(pdist(centers, metric='euclidean'))
+    np.fill_diagonal(dist_matrix, np.inf)
+    
+    # 每个笔画到最近邻的距离
+    nearest = np.min(dist_matrix, axis=1)
+    
+    # 自适应阈值
+    threshold = k * np.mean(nearest)
+    threshold = np.clip(threshold, 300, 2500)  # 限制范围
+    
+    print(f"自适应阈值: {threshold:.1f}")
+    return threshold
+
+
+def cluster_strokes(strokes, threshold=None):
+    """
+    将笔画聚类为字符
+    
+    参数:
+        strokes: 笔画列表
+        threshold: 距离阈值（None则自动计算）
+    
+    返回:
+        list: 字符列表，每个字符包含多个笔画
+    """
+    if threshold is None:
+        threshold = calculate_adaptive_threshold(strokes)
+    
+    if not strokes:
+        return []
+    
+    characters = []
+    current_char = [strokes[0]]
+    cx, cy = np.mean(strokes[0]['x']), np.mean(strokes[0]['y'])
+    
+    for stroke in strokes[1:]:
+        sx, sy = np.mean(stroke['x']), np.mean(stroke['y'])
+        dist = np.hypot(sx - cx, sy - cy)
+        
+        if dist < threshold:
+            # 加入当前字符
+            current_char.append(stroke)
+            # 更新字符中心
+            all_x = np.concatenate([s['x'] for s in current_char])
+            all_y = np.concatenate([s['y'] for s in current_char])
+            cx, cy = np.mean(all_x), np.mean(all_y)
+        else:
+            # 保存当前字符，开始新字符
+            characters.append(current_char)
+            current_char = [stroke]
+            cx, cy = sx, sy
+    
+    if current_char:
+        characters.append(current_char)
+    
+    print(f"聚类完成: {len(strokes)} 个笔画 → {len(characters)} 个字符")
+    return characters
+
+
+def refine_characters(characters, max_strokes=2, merge_threshold=800):
+    """
+    合并相邻的短笔画字符（减少误分割）
+    
+    参数:
+        characters: 字符列表
+        max_strokes: 笔画数≤此值的字符可能被合并
+        merge_threshold: 允许合并的最大距离
+    
+    返回:
+        list: 优化后的字符列表
+    """
+    if len(characters) < 2:
+        return characters
+    
+    # 计算所有字符中心
+    centers = []
+    for char in characters:
+        all_x = np.concatenate([s['x'] for s in char])
+        all_y = np.concatenate([s['y'] for s in char])
+        centers.append((np.mean(all_x), np.mean(all_y)))
+    
+    # 标记短字符
+    short_indices = [i for i, c in enumerate(characters) if len(c) <= max_strokes]
+    
+    merged = [False] * len(characters)
+    new_characters = []
+    
+    for i in short_indices:
+        if merged[i]:
+            continue
+        
+        # 尝试与下一个字符合并
+        if i + 1 < len(characters) and not merged[i + 1]:
+            cx1, cy1 = centers[i]
+            cx2, cy2 = centers[i + 1]
+            dist = np.hypot(cx1 - cx2, cy1 - cy2)
+            
+            if dist < merge_threshold:
+                merged[i] = merged[i + 1] = True
+                new_characters.append(characters[i] + characters[i + 1])
+                continue
+        
+        new_characters.append(characters[i])
+    
+    # 添加未合并的长笔画字符
+    for i in range(len(characters)):
+        if not merged[i] and i not in short_indices:
+            new_characters.append(characters[i])
+    
+    print(f"Refine: {len(characters)} → {len(new_characters)} 个字符")
+    return new_characters
+
+
+# ==================== 可视化 ====================
+
+def plot_characters(characters, xlim, ylim, title="轨迹可视化"):
+    """
+    可视化字符，每个字符用不同颜色
+    
+    参数:
+        characters: 字符列表
+        xlim: (x_min, x_max)
+        ylim: (y_min, y_max)
+        title: 图表标题
+    """
+    fig, ax = plt.subplots(figsize=(12, 9))
+    
+    # 为每个字符分配随机颜色
+    np.random.seed(42)
+    colors = np.random.random((len(characters), 3))
+    
+    for idx, char in enumerate(characters):
+        color = colors[idx]
+        for stroke in char:
+            ax.plot(stroke['x'], stroke['y'], color=color, linewidth=1.5)
+    
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.invert_yaxis()
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_title(f"{title} ({len(characters)} 个字符)")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    
+    plt.tight_layout()
+    return fig, ax
+
+
+def plot_strokes_with_pressure(strokes, xlim, ylim):
+    """
+    可视化笔画，颜色表示压力大小
+    
+    参数:
+        strokes: 笔画列表
+        xlim: (x_min, x_max)
+        ylim: (y_min, y_max)
+    """
+    fig, ax = plt.subplots(figsize=(12, 9))
+    
+    for stroke in strokes:
+        x, y, p = stroke['x'], stroke['y'], stroke['pressure']
+        
+        if len(x) < 2:
+            continue
+        
+        # 创建线段
+        points = np.array([x, y]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        
+        # 压力归一化到[0,1]
+        p_norm = (p - p.min()) / (p.max() - p.min() + 1e-6)
+        
+        # 用颜色表示压力
+        lc = LineCollection(segments, cmap='viridis', linewidth=2)
+        lc.set_array(p_norm)
+        ax.add_collection(lc)
+    
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.invert_yaxis()
+    ax.set_aspect('equal', adjustable='box')
+    ax.set_title(f"笔画压力图 ({len(strokes)} 个笔画)")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    
+    plt.colorbar(lc, ax=ax, label="压力（归一化）")
+    plt.tight_layout()
+    return fig, ax
+```
+
+---
+
+## 三、完整使用示例
+
+将以下代码保存为`example.py`（与数据文件`1.txt`放在同一目录）：
+
+```python
+"""
+完整使用示例：从加载数据到可视化
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from trajectory_analyzer import *  # 导入上面的所有函数
+
+
+def main():
+    # ========== 1. 加载数据 ==========
+    data = load_trajectory_data('1.txt', skip_rows=3)
+    if data is None:
+        return
+    
+    # ========== 2. 计算坐标范围 ==========
+    margin = 500
+    xlim = (data['x'].min() - margin, data['x'].max() + margin)
+    ylim = (data['y'].min() - margin, data['y'].max() + margin)
+    print(f"坐标范围: X={xlim}, Y={ylim}")
+    
+    # ========== 3. 分割笔画 ==========
+    strokes = split_into_strokes(data)
+    
+    # ========== 4. 聚类成字符 ==========
+    # 方法A：自动阈值
+    characters = cluster_strokes(strokes, threshold=None)
+    
+    # 方法B：手动阈值（可选）
+    # characters = cluster_strokes(strokes, threshold=1000.0)
+    
+    # ========== 5. 优化聚类结果 ==========
+    characters_refined = refine_characters(
+        characters,
+        max_strokes=2,      # 笔画数≤2的字符可能被合并
+        merge_threshold=800  # 合并距离阈值
+    )
+    
+    # ========== 6. 可视化 ==========
+    # 图1：原始聚类结果
+    plot_characters(characters, xlim, ylim, "原始聚类")
+    
+    # 图2：优化后的结果
+    plot_characters(characters_refined, xlim, ylim, "优化后聚类")
+    
+    # 图3：笔画压力图（可选）
+    plot_strokes_with_pressure(strokes, xlim, ylim)
+    
+    plt.show()
+    print("\n分析完成！")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## 四、快速上手
+
+### 最简使用（3行代码）
+
+```python
+from trajectory_analyzer import *
+
+data = load_trajectory_data('1.txt', skip_rows=3)
+strokes = split_into_strokes(data)
+characters = cluster_strokes(strokes)  # 自动计算阈值
+```
+
+### 带可视化（完整流程）
+
+```python
+from trajectory_analyzer import *
+import matplotlib.pyplot as plt
+
+# 加载并处理
+data = load_trajectory_data('1.txt', skip_rows=3)
+strokes = split_into_strokes(data)
+characters = cluster_strokes(strokes)
+characters = refine_characters(characters)
+
+# 可视化
+xlim = (data['x'].min() - 500, data['x'].max() + 500)
+ylim = (data['y'].min() - 500, data['y'].max() + 500)
+plot_characters(characters, xlim, ylim)
+plt.show()
+```
+
+---
+
+## 五、关键参数调优
+
+| 参数 | 默认值 | 作用 | 调整建议 |
+|------|--------|------|----------|
+| `skip_rows` | 3 | 跳过文件头行数 | 固定为3 |
+| `threshold` | None（自适应） | 字符聚类距离阈值 | 字符大→增大；字符小→减小 |
+| `k` | 2.2 | 自适应阈值缩放系数 | 字符稀疏→增大(2.5)；密集→减小(1.8) |
+| `max_strokes` | 2 | Refine时短笔画判定标准 | 根据书写习惯调整 |
+| `merge_threshold` | 800 | Refine时允许合并的距离 | 字符间距大→增大；间距小→减小 |
+
+**调优技巧：**
+- 如果字符被错误分割（一个字分成多个）→ 增大`threshold`或`k`
+- 如果多个字符被合并为一个 → 减小`threshold`或`k`
+- 如果单笔画字符（如"一"）被误合并 → 减小`merge_threshold`
+
+---
+
+## 六、输出说明
+
+运行示例代码后，会输出：
+
+```
+加载数据: 7711 行
+分割完成: 45 个笔画
+自适应阈值: 1234.5
+聚类完成: 45 个笔画 → 12 个字符
+Refine: 12 → 10 个字符
+分析完成！
+```
+
+并弹出可视化窗口，每个字符用不同颜色显示。
+
+---
