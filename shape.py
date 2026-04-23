@@ -7,7 +7,7 @@ from shape import final_shape_migong as migong
 from shape import final_shape_sym as sym
 from shape import final_shape_circle as circle
 
-plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]  # 适配不同系统的中文字体
+plt.rcParams["font.family"] = ["SimHei"]  # 适配不同系统的中文字体
 plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示为方块的问题
 
 def read_image(path: str, flags=cv2.IMREAD_UNCHANGED):
