@@ -1,0 +1,78 @@
+{
+  "sample_id": "c16",
+  "game": "circle",
+  "F1": 0.087799,
+  "F2": 0.896104,
+  "F3": 0.000476,
+  "F4": 0.002639,
+  "C1": 0.705372,
+  "C2": 0.0,
+  "C3": 0.045577,
+  "meta": {
+    "num_strokes": 1,
+    "total_points": 8518,
+    "canvas_hw": [
+      1601,
+      1201
+    ],
+    "inner_bbox": [
+      184,
+      394,
+      1018,
+      1227
+    ],
+    "align_mode": "png_bbox",
+    "channel_area": 488102,
+    "channel_skeleton_length": 8199,
+    "solution_path_length_px": 2682,
+    "solution_channel_area": 163134,
+    "entry_xy": [
+      315,
+      522
+    ],
+    "exit_xy": [
+      892,
+      1082
+    ],
+    "num_skeleton_sample_pts": 77,
+    "keypoints_hit": 69,
+    "num_user_hough_segments": 0,
+    "C1_projected_points": 8061,
+    "C1_bad_points": 5686,
+    "C1_projected_fraction": 0.9463,
+    "C2_threshold": 40.028,
+    "C2_n_short_strokes": 0,
+    "C3_n_pressure_points": 8512,
+    "F3_detail": {
+      "illegal_dist_sum": 232.5493,
+      "illegal_pixel_count": 49,
+      "n_cross_axis_pixels": 0,
+      "cross_penalty_coef": 0.0,
+      "F3_main_contribution": 0.000476,
+      "F3_cross_contribution": 0.0,
+      "channel_area": 488102
+    },
+    "circle_center_xy": [
+      601,
+      811
+    ],
+    "outer_ring_radius": 416.65,
+    "num_channel_components_before_filter": 24,
+    "C1_method": "skeleton_dist",
+    "params": {
+      "sample_step": 40.0,
+      "hit_radius": 12.0,
+      "jitter_tol": 3.0,
+      "channel_half_width_C1": 20.0,
+      "C2_threshold_ratio": 0.02,
+      "C3_trim_ends": 3,
+      "r_wall": 2,
+      "r_solution_channel": 28,
+      "entry_corner_size": 105,
+      "line_thickness": 3,
+      "skip_rows": 3,
+      "game_type": "circle",
+      "circle_scan_entry": false
+    }
+  }
+}

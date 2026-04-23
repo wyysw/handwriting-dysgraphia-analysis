@@ -1,0 +1,50 @@
+{
+  "sample_id": "s7",
+  "game": "sym",
+  "F1": 0.655541,
+  "F2": 0.904762,
+  "F3": 2.330446,
+  "F4": 0.220114,
+  "C1": 0.612582,
+  "C2": 0.0,
+  "C3": 0.051406,
+  "meta": {
+    "num_strokes": 1,
+    "total_points": 7048,
+    "axis_y": 793,
+    "step_x": 56,
+    "step_y": 55,
+    "num_keypoints": 21,
+    "keypoints_hit": 19,
+    "num_hough_segments": 10,
+    "C1_projected_points": 5023,
+    "C1_bad_points": 3077,
+    "C2_threshold": 40.028,
+    "C2_n_short_strokes": 0,
+    "C3_n_pressure_points": 7042,
+    "F3_detail": {
+      "illegal_dist_sum": 8495.3711,
+      "illegal_pixel_count": 1578,
+      "n_cross_axis_pixels": 143,
+      "cross_penalty_coef": 10.0,
+      "F3_main_contribution": 1.994687,
+      "F3_cross_contribution": 0.33576,
+      "target_area": 4259
+    },
+    "canvas_hw": [
+      1601,
+      1201
+    ],
+    "params": {
+      "dilation_F1": 5,
+      "tol_valid": 9,
+      "hit_radius": 6.0,
+      "jitter_tol": 3.0,
+      "C1_channel_half_width": 11.0,
+      "C2_threshold_ratio": 0.02,
+      "C3_trim_ends": 3,
+      "F3_cross_penalty_coef": 10.0,
+      "skip_rows": 3
+    }
+  }
+}

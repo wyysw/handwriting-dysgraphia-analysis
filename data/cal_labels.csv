@@ -1,0 +1,4 @@
+game,num0,num1,numf,f_id
+sym,4,3,1,{s4}
+maze,11,18,5,{l15,l16,l17,l29,l31}
+circle,5,10,6,{c3,c6,c8,c18,c19,c21}

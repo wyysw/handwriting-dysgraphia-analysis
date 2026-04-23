@@ -120,13 +120,36 @@ def calculate_adaptive_threshold(strokes, k=2.0, min_threshold=300.0, max_thresh
 
 ## 三、对称游戏特征提取
 
+"""
+python run_feature.py
+python run_feature.py --game sym
+"""
+
 ```
-python features/sym_feature_extractor.py --txt data/samples/sym/{id}.txt --png data/samples/sym/{id}.png --blue output_sym/shape_sym/sym_blue_mask.png --helper output_sym/shape_sym/sym_helper_mask_completed.png  --out output_sym/extract/{id}.json --vis vis_{id}.png
+python features/sym_feature_extractor.py --txt data/samples/sym/{id}.txt --png data/samples/sym/{id}.png --blue output_sym/shape_sym/sym_blue_mask.png --helper output_sym/shape_sym/sym_helper_mask_completed.png  --out output_sym/extract/{id}.json --vis output_sym/extract/vis_{id}.png
 ```
 
 
 ## 四、方形迷宫特征提取
 
+"""
+python run_feature.py
+python run_feature.py --game maze
+"""
+
 ```
-python features/maze_feature_extractor.py --txt data/samples/maze/{id}.txt --png data/samples/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id}
+python features/maze_feature_extractor.py --txt data/samples/maze/{id}.txt --png data/samples/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id} --game maze
 ```
+
+## 五、圆形迷宫特征提取
+
+"""
+python run_feature.py
+python run_feature.py --game circle
+"""
+
+```
+python features/maze_feature_extractor.py --txt data/samples/circle/{id}.txt --png data/samples/circle/{id}.png --mask output_circle/shape_circle/circle_mask.png --game circle --out output_circle/extract/{id}.json --vis_dir output_circle/extract/vis_{id} --sample_id {id}
+```
+
+

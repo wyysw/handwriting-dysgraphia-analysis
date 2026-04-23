@@ -1,11 +1,11 @@
 {
   "sample_id": "c7",
-  "game": "maze",
-  "F1": 0.0,
-  "F2": 0.0,
-  "F3": 759.204438,
-  "F4": 1.0,
-  "C1": 0.584546,
+  "game": "circle",
+  "F1": 0.06342,
+  "F2": 0.558442,
+  "F3": 0.002941,
+  "F4": 0.029114,
+  "C1": 0.814295,
   "C2": 0.0,
   "C3": 0.051431,
   "meta": {
@@ -16,46 +16,49 @@
       1201
     ],
     "inner_bbox": [
-      185,
-      395,
-      1017,
-      1226
+      184,
+      394,
+      1018,
+      1227
     ],
     "align_mode": "png_bbox",
-    "channel_area": 4022,
-    "channel_skeleton_length": 2,
-    "solution_path_length_px": 1,
-    "solution_channel_area": 2517,
+    "channel_area": 488102,
+    "channel_skeleton_length": 8199,
+    "solution_path_length_px": 2682,
+    "solution_channel_area": 163134,
     "entry_xy": [
-      964,
-      447
+      315,
+      522
     ],
     "exit_xy": [
-      237,
-      1173
+      892,
+      1082
     ],
-    "num_skeleton_sample_pts": 1,
-    "keypoints_hit": 0,
-    "num_user_hough_segments": 22,
-    "C1_projected_points": 7079,
-    "C1_bad_points": 4138,
-    "C1_projected_fraction": 0.8171,
+    "num_skeleton_sample_pts": 77,
+    "keypoints_hit": 43,
+    "num_user_hough_segments": 0,
+    "C1_projected_points": 6478,
+    "C1_bad_points": 5275,
+    "C1_projected_fraction": 0.7477,
     "C2_threshold": 40.028,
     "C2_n_short_strokes": 0,
     "C3_n_pressure_points": 8658,
     "F3_detail": {
-      "illegal_dist_sum": 3053520.25,
-      "illegal_pixel_count": 12537,
+      "illegal_dist_sum": 1435.4341,
+      "illegal_pixel_count": 365,
       "n_cross_axis_pixels": 0,
       "cross_penalty_coef": 0.0,
-      "F3_main_contribution": 759.204438,
+      "F3_main_contribution": 0.002941,
       "F3_cross_contribution": 0.0,
-      "channel_area": 4022
+      "channel_area": 488102
     },
-    "circle_center_xy": null,
-    "outer_ring_radius": null,
-    "num_channel_components_before_filter": null,
-    "C1_method": "hough_user",
+    "circle_center_xy": [
+      601,
+      811
+    ],
+    "outer_ring_radius": 416.65,
+    "num_channel_components_before_filter": 24,
+    "C1_method": "skeleton_dist",
     "params": {
       "sample_step": 40.0,
       "hit_radius": 12.0,
@@ -68,8 +71,8 @@
       "entry_corner_size": 105,
       "line_thickness": 3,
       "skip_rows": 3,
-      "game_type": "maze",
-      "circle_scan_entry": null
+      "game_type": "circle",
+      "circle_scan_entry": false
     }
   }
 }
