@@ -14,9 +14,7 @@ This repository contains the implementation for the undergraduate thesis:
 
 ## 一、游戏页面图片预处理
 
-```
-python shape.py
-```
+
 
 ```
 project_root/
@@ -37,9 +35,9 @@ project_root/
 
 | 脚本 | 输入 | 关键输出 |
 |---|---|---|
-| `shape/final_shape_sym.py` | `data/35duichen.png` | `sym_blue_mask.png`（蓝色半边图形）, `sym_helper_mask_completed.png`（网格+对称轴+外框） |
-| `shape/final_shape_migong.py` | `data/34migong.png` | `maze_mask.png`（迷宫墙壁线条） |
-| `shape/final_shape_circle.py` | `data/36circle.png` | `circle_mask.png`（圆形迷宫墙壁线条） |
+| `shape/final_shape_sym.py` | `data/raw/35duichen.png` | `sym_blue_mask.png`（蓝色半边图形）, `sym_helper_mask.png`（网格+对称轴+外框） |
+| `shape/final_shape_migong.py` | `data/raw/34migong.png` | `maze_mask.png`（迷宫墙壁线条） |
+| `shape/final_shape_circle.py` | `data/raw/36circle.png` | `circle_mask.png`（圆形迷宫墙壁线条） |
 | `shape.py` | — | 统一调度以上三个脚本 |
 
 所有输出掩码与原图保持 **相同的 1201 × 1601 尺寸**，背景像素为 0（黑），前景（被提取的线条）像素为 255（白）。
@@ -126,7 +124,7 @@ python run_feature.py --game sym
 """
 
 ```
-python features/sym_feature_extractor.py --txt data/samples/sym/{id}.txt --png data/samples/sym/{id}.png --blue output_sym/shape_sym/sym_blue_mask.png --helper output_sym/shape_sym/sym_helper_mask_completed.png  --out output_sym/extract/{id}.json --vis output_sym/extract/vis_{id}.png
+python features/sym_feature_extractor.py --txt data/raw/sym/{id}.txt --png data/raw/sym/{id}.png --blue data/shape_out/sym_blue_mask --helper output_sym/shape_sym/sym_helper_mask.png  --out output_sym/extract/{id}.json --vis output_sym/extract/vis_{id}.png
 ```
 
 
@@ -138,7 +136,7 @@ python run_feature.py --game maze
 """
 
 ```
-python features/maze_feature_extractor.py --txt data/samples/maze/{id}.txt --png data/samples/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id} --game maze
+python features/maze_feature_extractor.py --txt data/raw/maze/{id}.txt --png data/raw/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id} --game maze
 ```
 
 ## 五、圆形迷宫特征提取
@@ -149,7 +147,7 @@ python run_feature.py --game circle
 """
 
 ```
-python features/maze_feature_extractor.py --txt data/samples/circle/{id}.txt --png data/samples/circle/{id}.png --mask output_circle/shape_circle/circle_mask.png --game circle --out output_circle/extract/{id}.json --vis_dir output_circle/extract/vis_{id} --sample_id {id}
+python features/maze_feature_extractor.py --txt data/raw/circle/{id}.txt --png data/raw/circle/{id}.png --mask output_circle/shape_circle/circle_mask.png --game circle --out output_circle/extract/{id}.json --vis_dir output_circle/extract/vis_{id} --sample_id {id}
 ```
 
 

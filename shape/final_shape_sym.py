@@ -535,7 +535,7 @@ def extract_symmetry(
     # 7) helper：外框 + 补全网格 + 虚线
     helper_mask_completed = cv2.bitwise_or(outer_box_mask, grid_mask_completed)
     helper_mask_completed = cv2.bitwise_or(helper_mask_completed, dashed_mask)
-    save_mask(helper_mask_completed, os.path.join(out_dir, "sym_helper_mask_completed.png"))
+    save_mask(helper_mask_completed, os.path.join(out_dir, "sym_helper_mask.png"))
 
     helper_only_completed = apply_mask_to_image(processed_img, helper_mask_completed)
     cv2.imwrite(os.path.join(out_dir, "sym_helper_only_completed.png"), helper_only_completed)
@@ -575,7 +575,7 @@ def extract_symmetry(
 
 def main():
     # 修改成你的实际输入图片路径
-    sym_image = "data/35duichen.png"
+    sym_image = "data/raw/35duichen.png"
     sym_out_dir = "./output_sym/shape_sym"
 
     extract_symmetry(

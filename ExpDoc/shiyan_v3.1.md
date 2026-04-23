@@ -20,7 +20,7 @@
 
 | 游戏 | 任务描述 | 参考图像文件 |
 |---|---|---|
-| 对称（Symmetry） | 依据对称轴，将左侧/上半区蓝色图形镜像补画到右侧/下半区 | `sym_blue_mask.png`, `sym_helper_mask_completed.png` |
+| 对称（Symmetry） | 依据对称轴，将左侧/上半区蓝色图形镜像补画到右侧/下半区 | `sym_blue_mask.png`, `sym_helper_mask.png` |
 | 方形迷宫（Square Maze） | 在直线迷宫中从起点走到终点 | `maze_mask.png` |
 | 圆形迷宫（Circle Maze） | 在环形路径迷宫中从起点走到终点 | `circle_mask.png` |
 
@@ -37,8 +37,8 @@
 
 | 文件 | 格式说明 |
 |---|---|
-| **所有样本轨迹**（建议每游戏 ≥ 10 份） | `data/samples/{sym,maze,circle}/{sample_id}.txt` |
-| **对应用户绘制图片** | `data/samples/{sym,maze,circle}/{sample_id}.png`（仅用于 bbox 参照） |
+| **所有样本轨迹**（建议每游戏 ≥ 10 份） | `data/raw/{sym,maze,circle}/{sample_id}.txt` |
+| **对应用户绘制图片** | `data/raw/{sym,maze,circle}/{sample_id}.png`（仅用于 bbox 参照） |
 
 **`labels.csv` 格式**：
 ```csv
@@ -68,9 +68,9 @@ circle_001,circle,1
 
 | 脚本 | 输入 | 关键输出 |
 |---|---|---|
-| `shape/final_shape_sym.py` | `data/35duichen.png` | `sym_blue_mask.png`（蓝色半边图形）, `sym_helper_mask_completed.png`（网格+对称轴+外框） |
-| `shape/final_shape_migong.py` | `data/34migong.png` | `maze_mask.png`（迷宫墙壁线条） |
-| `shape/final_shape_circle.py` | `data/36circle.png` | `circle_mask.png`（圆形迷宫墙壁线条） |
+| `shape/final_shape_sym.py` | `data/raw/35duichen.png` | `sym_blue_mask.png`（蓝色半边图形）, `sym_helper_mask.png`（网格+对称轴+外框） |
+| `shape/final_shape_migong.py` | `data/raw/34migong.png` | `maze_mask.png`（迷宫墙壁线条） |
+| `shape/final_shape_circle.py` | `data/raw/36circle.png` | `circle_mask.png`（圆形迷宫墙壁线条） |
 | `shape.py` | — | 统一调度以上三个脚本 |
 
 所有掩码均为 1201×1601 单通道 PNG，与原图像素级对齐。
@@ -172,7 +172,7 @@ def calculate_adaptive_threshold(strokes, k=2.0, min_threshold=300.0, max_thresh
 ### 4.1 阶段1：对称游戏特征提取器
 
 ```
-python features/sym_feature_extractor.py --txt data/samples/sym/{id}.txt --png data/samples/sym/{id}.png --blue output_sym/shape_sym/sym_blue_mask.png --helper output_sym/shape_sym/sym_helper_mask_completed.png  --out output_sym/extract/{id}.json --vis output_sym/extract/vis_{id}.png
+python features/sym_feature_extractor.py --txt data/raw/sym/{id}.txt --png data/raw/sym/{id}.png --blue data/shape_out/sym_blue_mask --helper data/shape_out/sym_helper_mask.png  --out output_sym/extract/{id}.json --vis output_sym/extract/vis_{id}.png
 ```
 
 #### 4.1.1 程序：`features/sym_feature_extractor.py`
@@ -339,7 +339,7 @@ extract_sym_features(txt_path, png_path, blue_mask_path, helper_mask_path, out_j
 - `txt_path`：用户轨迹文件（`x y pressure`，跳过前 3 行）
 - `png_path`：用户绘制图片（仅用于 bbox 坐标参照）
 - `blue_mask_path`：`sym_blue_mask.png`（对称标准答案）
-- `helper_mask_path`：`sym_helper_mask_completed.png`（含对称轴和网格）
+- `helper_mask_path`：`sym_helper_mask.png`（含对称轴和网格）
 - `out_json_path`（可选）：若提供，自动保存 JSON
 
 **输出**（JSON / dict）：
@@ -380,7 +380,7 @@ extract_sym_features(txt_path, png_path, blue_mask_path, helper_mask_path, out_j
 ### 4.2 阶段2：方形迷宫游戏特征提取器
 
 ```
-python features/maze_feature_extractor.py --txt data/samples/maze/{id}.txt --png data/samples/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id}
+python features/maze_feature_extractor.py --txt data/raw/maze/{id}.txt --png data/raw/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id}
 ```
 
 迷宫游戏的 F1–F4 依赖通道几何，与对称游戏算法不同；
@@ -629,7 +629,7 @@ JSON 输出中 `meta` 额外记录：
 ### 4.3 阶段3：圆形迷宫游戏特征提取器
 
 ```
-python features/maze_feature_extractor.py --txt data/samples/circle/{id}.txt --png data/samples/circle/{id}.png --mask output_circle/shape_circle/circle_mask.png --game circle --out output_circle/extract/{id}.json --vis_dir output_circle/extract/vis_{id} --sample_id {id}
+python features/maze_feature_extractor.py --txt data/raw/circle/{id}.txt --png data/raw/circle/{id}.png --mask output_circle/shape_circle/circle_mask.png --game circle --out output_circle/extract/{id}.json --vis_dir output_circle/extract/vis_{id} --sample_id {id}
 ```
 
 ---

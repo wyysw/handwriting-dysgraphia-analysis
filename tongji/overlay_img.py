@@ -1,9 +1,9 @@
 """
 三组图层叠加脚本
 
-组1: data/35duichen.png  +  data/samples/sym/{id}.png   → data/mark/sym/{id}.png
-组2: data/34migong.png   +  data/samples/maze/{id}.png  → data/mark/maze/{id}.png
-组3: data/36circle.png   +  data/samples/circle/{id}.png→ data/mark/circle/{id}.png
+组1: data/raw/35duichen.png  +  data/raw/sym/{id}.png   → data/mark/sym/{id}.png
+组2: data/raw/34migong.png   +  data/raw/maze/{id}.png  → data/mark/maze/{id}.png
+组3: data/raw/36circle.png   +  data/raw/circle/{id}.png→ data/mark/circle/{id}.png
 """
 
 from pathlib import Path
@@ -13,20 +13,20 @@ from PIL import Image
 GROUPS = [
     {
         "name": "sym",
-        "background": "data/35duichen.png",
-        "samples_dir": "data/samples/sym",
+        "background": "data/raw/35duichen.png",
+        "samples_dir": "data/raw/sym",
         "output_dir": "data/mark/sym",
     },
     {
         "name": "maze",
-        "background": "data/34migong.png",
-        "samples_dir": "data/samples/maze",
+        "background": "data/raw/34migong.png",
+        "samples_dir": "data/raw/maze",
         "output_dir": "data/mark/maze",
     },
     {
         "name": "circle",
-        "background": "data/36circle.png",
-        "samples_dir": "data/samples/circle",
+        "background": "data/raw/36circle.png",
+        "samples_dir": "data/raw/circle",
         "output_dir": "data/mark/circle",
     },
 ]

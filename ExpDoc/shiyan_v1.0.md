@@ -36,7 +36,7 @@
 
 | 游戏 | 任务描述 | 参考图像文件 |
 |---|---|---|
-| 对称（Symmetry） | 依据对称轴，将左侧/上半区蓝色图形镜像补画到右侧/下半区 | `sym_blue_mask.png`, `sym_helper_mask_completed.png` |
+| 对称（Symmetry） | 依据对称轴，将左侧/上半区蓝色图形镜像补画到右侧/下半区 | `sym_blue_mask.png`, `sym_helper_mask.png` |
 | 方形迷宫（Square Maze） | 在直线迷宫中从起点走到终点 | `maze_mask.png` |
 | 圆形迷宫（Circle Maze） | 在环形路径迷宫中从起点走到终点 | `circle_mask.png` |
 
@@ -66,9 +66,9 @@
 
 | 脚本 | 输入 | 关键输出 |
 |---|---|---|
-| `shape/final_shape_sym.py` | `data/35duichen.png` | `sym_blue_mask.png`（蓝色半边图形）, `sym_helper_mask_completed.png`（网格+对称轴+外框） |
-| `shape/final_shape_migong.py` | `data/34migong.png` | `maze_mask.png`（迷宫墙壁线条） |
-| `shape/final_shape_circle.py` | `data/36circle.png` | `circle_mask.png`（圆形迷宫墙壁线条） |
+| `shape/final_shape_sym.py` | `data/raw/35duichen.png` | `sym_blue_mask.png`（蓝色半边图形）, `sym_helper_mask.png`（网格+对称轴+外框） |
+| `shape/final_shape_migong.py` | `data/raw/34migong.png` | `maze_mask.png`（迷宫墙壁线条） |
+| `shape/final_shape_circle.py` | `data/raw/36circle.png` | `circle_mask.png`（圆形迷宫墙壁线条） |
 | `shape.py` | — | 统一调度以上三个脚本 |
 
 所有掩码均为 1201×1601 单通道 PNG，与原图像素级对齐。
@@ -314,7 +314,7 @@ extract_sym_features(txt_path, png_path, blue_mask_path, helper_mask_path, out_j
 - `txt_path`：用户轨迹文件（`x y pressure`，跳过前 3 行）
 - `png_path`：用户绘制图片（仅用于 bbox 坐标参照，与 sym_analyze3 一致）
 - `blue_mask_path`：`sym_blue_mask.png`（对称标准答案）
-- `helper_mask_path`：`sym_helper_mask_completed.png`（含对称轴和网格）
+- `helper_mask_path`：`sym_helper_mask.png`（含对称轴和网格）
 - `out_json_path`（可选）：若提供，自动保存 JSON
 
 **输出**（JSON / dict）：
@@ -468,7 +468,7 @@ def extract_maze_features(txt_path, png_path,
 **目的**：将所有样本的原始特征 JSON 汇总成一个带标签的 CSV，并为每个游戏估计归一化参数 (μ, σ)，输出归一化后的特征矩阵，供分类器直接读取。
 
 **功能**：
-1. 批量读取 `data/samples/{game_type}/` 下所有样本，调用对应特征提取器，生成/读取 JSON
+1. 批量读取 `data/raw/{game_type}/` 下所有样本，调用对应特征提取器，生成/读取 JSON
 2. 将所有 JSON 合并为 `features_raw.csv`（每行一个样本，列为 sample_id, game, label, F1…C3）
 3. **乱画检测（Scribble Gate）**：满足以下全部条件则标记为 `scribble=1`，从后续流程剔除：
    - 用户笔迹 mask 与标准图形 mask 的 IoU < 0.05
@@ -482,8 +482,8 @@ def extract_maze_features(txt_path, png_path,
 - 若某游戏正常样本 < 5，在论文中如实说明，并讨论其对归一化稳定性的影响
 
 **输入**：
-- `data/samples/{game_type}/*.txt`（全部样本轨迹）
-- `data/labels.csv`
+- `data/raw/{game_type}/*.txt`（全部样本轨迹）
+- `data/raw/labels.csv`
 - 模块 1 输出的各掩码文件
 - （可选）已有的特征 JSON 缓存，避免重复计算
 
@@ -622,14 +622,14 @@ def train_and_predict(X_train, y_train, X_test, method='B',
 | `l1.txt` | `/project/l1.txt` | 方形迷宫轨迹样本 |
 | `c1.txt` | `/project/c1.txt` | 圆形迷宫轨迹样本 |
 | `sym_blue_mask.png` | 上传图片 | 对称标准答案掩码 |
-| `sym_helper_mask_completed.png` | 上传图片 | 对称辅助线掩码（含对称轴） |
+| `sym_helper_mask.png` | 上传图片 | 对称辅助线掩码（含对称轴） |
 
 ### 6.2 我提供的文件
 
 | 文件 | 格式说明 |
 |---|---|
-| **所有样本轨迹**（建议每游戏 ≥ 10 份） | `data/samples/{sym,maze,circle}/{sample_id}.txt` |
-| **对应用户绘制图片** | `data/samples/{sym,maze,circle}/{sample_id}.png`（仅用于 bbox 参照） |
+| **所有样本轨迹**（建议每游戏 ≥ 10 份） | `data/raw/{sym,maze,circle}/{sample_id}.txt` |
+| **对应用户绘制图片** | `data/raw/{sym,maze,circle}/{sample_id}.png`（仅用于 bbox 参照） |
 | **标签文件** `labels.csv` | 见下方格式 |
 | `maze_mask.png` | 模块 1 输出 |
 | `circle_mask.png` | 模块 1 输出 |
@@ -680,7 +680,7 @@ project_root/
 │   └── maze_mask.png
 ├── output_sym/shape_sym/
 │   ├── sym_blue_mask.png
-│   └── sym_helper_mask_completed.png
+│   └── sym_helper_mask.png
 ├── output_circle/shape_circle/
 │   └── circle_mask.png
 │

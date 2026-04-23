@@ -617,7 +617,7 @@ if __name__ == "__main__":
     parser.add_argument("--txt", required=True, help="用户轨迹文件 (x y pressure)")
     parser.add_argument("--png", required=True, help="用户绘制 PNG（仅用于 bbox 参照）")
     parser.add_argument("--blue", required=True, help="sym_blue_mask.png")
-    parser.add_argument("--helper", required=True, help="sym_helper_mask_completed.png")
+    parser.add_argument("--helper", required=True, help="sym_helper_mask.png")
     parser.add_argument("--out", default=None, help="输出 JSON 路径（可选）")
     parser.add_argument("--sample_id", default=None, help="样本 id（默认用 txt 文件名）")
     parser.add_argument("--vis", default=None, help="可视化叠加图输出路径（可选）")

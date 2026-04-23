@@ -19,7 +19,7 @@
   # 如果特征分散在多个 JSON 目录中（阶段1-3的输出），改用：
   python features/build_feature_matrix.py \
       --json_dirs output_sym/extract output_maze/extract output_circle/extract \
-      --labels data/labels.csv \
+      --labels data/raw/labels.csv \
       --out_dir output/
 """
 
@@ -225,7 +225,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--labels",
-        default="data/labels.csv",
+        default="data/raw/labels.csv",
         help="labels.csv 路径（仅 --json_dirs 时使用）",
     )
     parser.add_argument(

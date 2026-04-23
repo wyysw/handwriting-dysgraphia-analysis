@@ -2,7 +2,7 @@ import os
 import json
 import pandas as pd
 
-LABEL_PATH = "data/labels.csv"
+LABEL_PATH = "data/raw/labels.csv"
 GAMES = ["sym", "circle", "maze"]
 
 FEATURE_COLS = ["F1", "F2", "F3", "F4", "C1", "C2", "C3"]

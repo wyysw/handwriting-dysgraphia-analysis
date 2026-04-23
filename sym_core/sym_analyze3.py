@@ -958,7 +958,7 @@ if __name__ == "__main__":
     out_dir = "output_sym/stage1_2_3_4_output"
     res = run_stage1(
         blue_mask_path=os.path.join(base, "sym_blue_mask.png"),
-        helper_mask_path=os.path.join(base, "sym_helper_mask_completed.png"),
+        helper_mask_path=os.path.join(base, "sym_helper_mask.png"),
         user_png_path=os.path.join(base, "3.png"),
         user_txt_path=os.path.join(base, "3.txt"),
         out_dir=out_dir,

@@ -291,7 +291,7 @@ def extract_maze(image_path: str, out_dir: str):
 # =========================
 
 def main():
-    maze_image = "data/36circle.png"
+    maze_image = "data/raw/36circle.png"
     output_dir = "./output_circle/shape_circle"
     extract_maze(maze_image, output_dir)
 
