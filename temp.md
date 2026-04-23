@@ -1,14 +1,5 @@
 # 书写障碍分类实验——完整推进指导文档
 
-> **版本**： v3.1
-> 阶段三已完成，已设计后续
-
-> **文档定位**：本文档是跨对话协作的主参考文档，整合实验设计与流程指导。
-> 在每次新对话开始时将本文档连同相关代码一起提供给 AI 助手，即可无缝延续工作。
-
----
-
-
 ## 1. 项目总览
 
 ### 1.1 研究目标
@@ -23,7 +14,6 @@
 | 对称（Symmetry） | 依据对称轴，将左侧/上半区蓝色图形镜像补画到右侧/下半区 | `sym_blue_mask.png`, `sym_helper_mask_completed.png` |
 | 方形迷宫（Square Maze） | 在直线迷宫中从起点走到终点 | `maze_mask.png` |
 | 圆形迷宫（Circle Maze） | 在环形路径迷宫中从起点走到终点 | `circle_mask.png` |
-
 
 ### 1.3 数据规格
 
@@ -58,6 +48,7 @@ circle_001,circle,1
 ### 2.1 游戏面板预处理（已完成）
 
 **作用**：从三张原始测评图提取标准参考结构，生成二值掩码。
+
 
 
 ### 2.2 Pen模块（样本数据使用）
@@ -238,6 +229,11 @@ extract_sym_features(txt_path, png_path, blue_mask_path, helper_mask_path, out_j
 
 - 对障碍样本应出现至少 1–2 个特征的明显偏差
 
+
+**测试方法**：
+1. 对已有样本运行，检查 JSON 是否正常输出，各特征值是否在合理范围
+2. 生成一张可视化叠加图（用户翻转笔迹 + 蓝图 + 关键点命中情况），目视确认坐标对齐无误
+
 ---
 
 
@@ -247,8 +243,9 @@ extract_sym_features(txt_path, png_path, blue_mask_path, helper_mask_path, out_j
 python features/maze_feature_extractor.py --txt data/samples/maze/{id}.txt --png data/samples/maze/{id}.png --mask output_maze/shape_maze/maze_mask.png --out output_maze/extract/{id}.json --vis_dir output_maze/extract/vis_{id} --sample_id {id}
 ```
 
-迷宫游戏的 F1–F4 依赖通道几何，与对称游戏算法不同。
+迷宫游戏的 F1–F4 依赖通道几何，与对称游戏算法不同；
 C1–C3 的**定义与对称游戏保持一致**，应提炼为公共库复用。
+样本txt文件表示的轨迹的坐标对齐与阶段1完全一致。
 
 ```
 maze_mask.png
@@ -353,6 +350,7 @@ C1, bad, total = compute_C1_jitter_ratio(
 
 只设计实现迷宫特有的 F1–F4。C1/C2/C3 调用公共库`stroke_utils.py`。迷宫的 C1 参考骨架 = `channel_skeleton`。
 
+
 **主入口**：
 ```
 extract_maze_features(
@@ -386,8 +384,6 @@ JSON 输出中 `meta` 额外记录：
 - `F3_detail`（与 sym 对齐，但 `n_cross_axis_pixels=0`、`cross_penalty_coef=0`）
 
 
----
-
 
 ### 4.3 阶段3：圆形迷宫游戏特征提取器
 
@@ -401,6 +397,7 @@ python features/maze_feature_extractor.py --txt data/samples/circle/{id}.txt --p
 
 两迷宫复用**同一套提取器与特征定义**，通过 `game_type='circle'` 区分几何分支。所有差异集中在 `maze_geometry.py` 的几何构造步骤；**特征层 F1–F4 代码零改动，C2/C3 代码零改动**。C1 是唯一存在方案分歧的地方（见 4.3.5）。
 
+
 ---
 
 #### 4.3.2 圆形迷宫几何概况（实测）
@@ -411,6 +408,7 @@ python features/maze_feature_extractor.py --txt data/samples/circle/{id}.txt --p
 
 #### 4.3.3 程序（扩展）：`features/maze_geometry.py` 圆形分支
 
+`build_maze_geometry` 增加 `game_type` 参数，`game_type='circle'` 时调用新增的 `_build_circle_geometry`。`MazeGeometry` 数据类新增三个可选字段记录圆形专属元信息。
 
 ```
 wall_mask (来自 circle_mask.png)
@@ -484,6 +482,13 @@ def compute_C1_jitter_ratio_skeleton(
 
 #### 4.3.7 输入 / 输出
 
+**输入**
+
+与方形迷宫完全一致：
+- `txt_path`：轨迹文件（前 3 行为文件头，跳过）
+- `png_path`：用户绘制 PNG（仅用于 bbox 坐标参照）；若为纯黑/不存在，自动 fallback 到 `inner_bbox_fallback`（用圆形外接矩形 bbox 对齐）
+- `maze_mask_path`：`circle_mask.png`（前景=墙壁）
+- `game_type='circle'`
 
 **输出（JSON）**
 
@@ -514,7 +519,6 @@ def compute_C1_jitter_ratio_skeleton(
 
 ### 4.4 阶段4：特征汇总 + 归一化管道
 
-
 #### 4.4.0 模块总览
 
 ```
@@ -542,30 +546,30 @@ feature_matrix.csv + gate_decisions.csv + normalize_stats.json
 
 #### 4.4.1 阶段4.A：乱画门控 `features/gate_unanalyzable.py`
 
+**输入**:data/feature/all.csv
+
 **门控规则**：
 
 IF (F2 < 0.4 AND F1 < 0.05)
    → 异常
 ELSE IF (F2 < 0.4 AND (F3 > 1 OR F4 > 0.3))
    → 异常
-ELSE IF (以game字段分组，计算各组F3、F4的Z分数，(F3的Z分数 > 2 OR F4的Z分数> 2))
+ELSE IF 以game字段分组，计算各组F3、F4的Z分数，Z分数>2
    → 异常
 ELSE
    → 正常
 
-**输出 `data/gate/gate_decisions.csv`**：
-```csv
-sample_id,game,label,F1,F2,F3,F4,F3_zscore,F4_zscore,is_unanalyzable,triggered_rules
-```
+**输出 `gate_decisions.csv`**：追加is_unanalyzable / triggered_rules / F3_zscore / F4_zscore 列
 
 **验收标准**：
 - 12 个已知乱画样本召回率 = 100%
 - label=0 样本误判数 = 0
 
-
 ---
 
 #### 4.4.2 阶段4.B：归一化 `features/normalize.py`
+
+**功能**：per-game robust z-score 归一化。基于 label=0 且可分析样本的 median/MAD 进行 robust z-score 归一化，并统一方向为"越大越异常"。
 
 **函数接口**（设计成 `fit / transform` 分离，便于阶段6的LOSO每折重新拟合）：
 
@@ -622,7 +626,6 @@ z = direction[f] * z_raw            # F1,F2取负号（正向特征"越大越异
 z = np.clip(z, clip[0], clip[1])
 ```
 
-**关键实现要点**：
 
 1. **MAD下限**：`scale = max(1.4826·MAD, 0.05·|median| + 1e-3)`。sym 游戏只有 4 个正常样本，MAD 可能几乎为 0 导致 z-score 爆炸——这个下限非常关键。
 2. **参考池可能很小**：sym 只有 4 个 label=0 样本，circle 只有 5 个，maze 只有 11 个。必要时在 meta 中记录 `ref_n`，若某 `ref_n < 3` 则发出警告（但不终止）。
@@ -633,18 +636,13 @@ z = np.clip(z, clip[0], clip[1])
 
 #### 4.4.3 阶段4.C：主入口 `features/build_feature_matrix.py`
 
-**调用**：
 ```bash
-python features/build_feature_matrix.py \
-    --json_dirs output_sym/extract output_maze/extract output_circle/extract \
-    --labels data/labels.csv \
-    --gate_config configs/gate_thresholds.yaml \
-    --out_dir output/
+python features/build_feature_matrix.py --feature_csv data/feature/all.csv --out_dir output
 ```
 
 **流程**：
 ```
-1. 遍历三个 json_dirs，加载所有样本的 F1..C3 + label + game
+1. 读取 data/feature/all.csv（或多个 json_dirs）
 2. 调用 gate_unanalyzable → 得到 is_unanalyzable 标记
 3. 筛选 {可分析 且 label=0} 样本 → fit_normalize_stats
 4. 对 {全部可分析样本} 调用 apply_normalize
@@ -654,25 +652,35 @@ python features/build_feature_matrix.py \
    - output/normalize_stats.json     # 归一化统计量（调试 + 报告用）
 ```
 
-**输出 `feature_matrix.csv` 格式**：
+**输出 `feature_matrix.csv`**：
 ```csv
 sample_id,game,label,F1_z,F2_z,F3_z,F4_z,C1_z,C2_z,C3_z
-s1,sym,0,-1.2,-0.8,0.3,-0.5,0.1,-0.2,-0.7
-s2,sym,1,2.1,1.8,2.5,1.9,1.2,0.3,1.5
-...
 ```
 
-**初步人工检查**（生成后必做）：
+**检查**：
 - label=0 样本的 z 值应大致在 [-2, +2] 范围内；
+
+    label=0 样本 z 均值: [ 0.28  0.48  0.5   1.25 -0.06  0.56  0.03]
+
 - label=1 样本应在至少 1-2 个特征上出现 z > 2 的明显偏离；
+
+    label=1 样本 z 均值: [1.27 2.24 2.88 4.07 0.4  1.03 0.49]
+
 - 若正常样本出现大量 |z| > 3，说明 MAD 下限需要调高；
+
+    label=0 中 |z|>3 的单元格数（期望接近 0）: 10
+
 - 若障碍样本 z 值普遍不高，说明特征判别力不足，可能需要回头调整阶段1-3的特征参数。
+
+    label=1 中 z>2  的单元格数（期望 ≥1-2）: 79
+
 
 ---
 
-## 阶段5：分类器 `classifier/classify.py`
 
-### 4.5.1 四个模型的统一接口
+### 4.5 阶段5：分类器
+
+#### 4.5.1 四个模型的统一接口
 
 ```python
 class BaseClassifier:
@@ -690,7 +698,7 @@ class BaseClassifier:
 
 ---
 
-### 4.5.2 M2：纯先验加权线性评分（消融对照，先写）
+#### 4.5.2 M2：纯先验加权线性评分（消融对照，先写）
 
 **先写 M2 是因为它最简单，可以作为 M1 的骨架**。
 
@@ -719,7 +727,7 @@ class PurePriorScorer:
 
 **sigmoid 缩放参数**：在 `fit` 时计算 `sigmoid_scale_ = std(X_train @ w) + ε`，让 score 在训练集上的标准差为 1 量级，避免 sigmoid 饱和。
 
-### 4.5.3 M1：半先验加权线性评分
+#### 4.5.3 M1：半先验加权线性评分
 
 ```python
 class SemiPriorScorer(PurePriorScorer):
@@ -747,7 +755,7 @@ class SemiPriorScorer(PurePriorScorer):
 
 **边界值 0.3 的含义**：每个特征权重在先验值的 ±30% 内微调。如果数据强烈主张某特征的权重"应该"更高或更低，优化结果会贴到边界上——这本身就是一个可报告的发现。
 
-### 4.5.4 M3：L2 Logistic Regression（主力）
+#### 4.5.4 M3：L2 Logistic Regression（主力）
 
 ```python
 from sklearn.linear_model import LogisticRegression
@@ -774,7 +782,7 @@ class L2LogisticClassifier:
 
 **C 参数的选择**：在阶段6的LOSO循环内嵌套一个小的网格搜索 `C ∈ {0.1, 0.3, 1.0, 3.0}`，用内层LOO选最优。考虑到样本量小，嵌套CV会让评估时间变长但结果更诚实。若时间紧张，直接用 `C=1.0` 并在报告中说明。
 
-### 4.5.5 M4：Random Forest（对照）
+#### 4.5.5 M4：Random Forest（对照）
 
 ```python
 from sklearn.ensemble import RandomForestClassifier
@@ -802,147 +810,15 @@ class RandomForestClassifier_wrap:
 
 ---
 
-## 阶段6：评估 `experiments/run_experiments.py`
 
-### 4.6.1 LOSO 主流程
+---
 
-```bash
-python experiments/run_experiments.py \
-    --feature_matrix output/feature_matrix.csv \
-    --gate_decisions output/gate_decisions.csv \
-    --out_dir results/
-```
 
-**核心循环**（伪代码）：
+### 4.6 阶段6：实验总结与评估（暂不考虑）
 
-```python
-# 读可分析样本
-df_analyzable = load(feature_matrix.csv)    # 乱画样本不在此
-# 读门控结果（含乱画）
-df_gate = load(gate_decisions.csv)
+#### 程序：`experiments/run_experiments.py`
 
-N = len(df_analyzable)
-models = {'M1':SemiPriorScorer(), 'M2':PurePriorScorer(),
-          'M3':L2LogisticClassifier(), 'M4':RandomForestClassifier_wrap()}
-
-# 每个模型的每个样本一个预测概率
-probs = {m: np.zeros(N) for m in models}
-
-for i in range(N):
-    train_idx = [j for j in range(N) if j != i]
-    test_idx  = [i]
-    
-    # 【关键】归一化统计量只在 train 上拟合
-    # 但feature_matrix.csv已经是归一化后的，这意味着此处有数据泄漏！
-    # ↓ 所以正确做法见下一小节
-    
-    for mname, model in models.items():
-        model.fit(X_z[train_idx], y[train_idx], games[train_idx])
-        probs[mname][i] = model.predict_proba(X_z[test_idx])[0]
-```
-
-### 4.6.2 严格防泄漏的正确实现
-
-上面的简化流程有一个严重问题：`feature_matrix.csv` 是用**全部可分析样本**（含测试样本）的统计量算的 z-score。测试样本参与了自己的归一化——数据泄漏。
-
-**正确的 LOSO 需要保存原始特征，每折重新归一化**：
-
-```python
-# 读原始特征（未归一化）
-df_raw = load_all_raw_features(json_dirs)
-df_raw = df_raw[df_raw['is_unanalyzable'] == False]   # 只留可分析样本
-
-X_raw = df_raw[FEATURE_NAMES].values
-y = df_raw['label'].values
-games = df_raw['game'].values
-
-for i in range(N):
-    train_idx = [j for j in range(N) if j != i]
-    test_idx  = [i]
-    
-    # 每折重新拟合归一化
-    stats = fit_normalize_stats(
-        feature_dicts=X_raw[train_idx], 
-        games=games[train_idx],
-        labels=y[train_idx],
-    )
-    X_train_z = apply_normalize(X_raw[train_idx], games[train_idx], stats)
-    X_test_z  = apply_normalize(X_raw[test_idx],  games[test_idx],  stats)
-    
-    for mname, model in models.items():
-        model.fit(X_train_z, y[train_idx], games[train_idx])
-        probs[mname][i] = model.predict_proba(X_test_z)[0]
-```
-
-**注意**：归一化参考池是 train 中的 label=0 样本。如果 test 样本恰好是某游戏的 label=0 样本之一，train 中该游戏的参考池会少一个样本——这会让 sym 的 label=0 池从 4 降到 3，MAD 估计更不稳定。**阶段4.B 的 MAD下限保护机制此时非常关键**。
-
-### 4.6.3 乱画样本并入终判
-
-```python
-# LOSO结束后，对每个乱画样本直接赋异常概率
-unanalyzable_ids = df_gate[df_gate['is_unanalyzable']==True]['sample_id']
-
-# 构造全样本的 prob 和 y
-probs_full = {m: [] for m in models}
-y_full = []
-games_full = []
-
-for row in df_gate.iterrows():
-    sid = row['sample_id']
-    y_full.append(row['label'])
-    games_full.append(row['game'])
-    if row['is_unanalyzable']:
-        for m in models: probs_full[m].append(1.0)     # 门控判异常
-    else:
-        idx = df_analyzable.index[df_analyzable['sample_id']==sid][0]
-        for m in models: probs_full[m].append(probs[m][idx])
-```
-
-**所有评估指标都基于 `probs_full` 和 `y_full` 计算**——这反映的是完整筛查系统的性能。
-
-### 4.6.4 评估指标与报告
-
-**三层指标表**：
-
-```
-【主任务性能】（在 全部样本 上计算）
-                    AUROC    AUPRC    F1@opt    阈值@opt
-M2 (纯先验)        0.xxx    0.xxx    0.xxx     0.xx
-M1 (半先验)        0.xxx    0.xxx    0.xxx     0.xx
-M3 (L2 LR)        0.xxx    0.xxx    0.xxx     0.xx
-M4 (RF)           0.xxx    0.xxx    0.xxx     0.xx
-
-【门控诊断】
-已知乱画样本数：12
-门控召回：xx/12
-门控误判（正常样本被门控）：x
-门控未识别的乱画（进入主分类器）：x
-
-【per-game AUROC 拆分】（仅主力 M3）
-sym:    0.xxx  (n=7+1乱画)
-maze:   0.xxx  (n=29+5乱画)
-circle: 0.xxx  (n=15+6乱画)
-```
-
-**关键对比叙事**：
-- M2 → M1：数据微调的边际价值
-- M1 → M3：软约束（权重盒约束）vs 硬约束（L2正则）
-- M3 → M4：非线性模型的增益
-- 若 M3 ≈ M4：**"本任务接近线性可分，简单模型已足够"——这是核心结论**
-
-### 4.6.5 可解释性图表
-
-**特征权重对比条形图**：
-
-```
-            F1   F2   F3   F4   C1   C2   C3
-M1 w_final  1.3  1.5  1.0  0.8  0.6  0.4  0.9    ← 半先验微调
-M2 w_prior  1.2  1.2  1.0  1.0  0.8  0.8  0.8    ← 纯先验（不变）
-M3 |coef|   0.9  1.2  0.7  0.6  0.3  0.1  0.8    ← 数据驱动
-M4 impor.   0.18 0.21 0.15 0.12 0.08 0.05 0.21   ← 树模型
-```
-
-**跨模型一致性分析**：计算四组权重的 **Spearman 秩相关系数**，若 ≥ 0.7 说明特征重要性排序在不同模型间一致，是方法论稳健性的有力证据。
 
 
 ---
+
