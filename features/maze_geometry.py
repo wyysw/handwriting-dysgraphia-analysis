@@ -171,8 +171,8 @@ def _detect_entry_exit_simple(
 ) -> Tuple[Point, Point]:
     """
     简化版（针对 maze_mask.png）：
-      入口 = 内框右上 corner_size × corner_size 矩形内通道像素的质心
-      出口 = 内框左下 corner_size × corner_size 矩形内通道像素的质心
+      入口 = 内框右上 corner_size * corner_size 矩形内通道像素的质心
+      出口 = 内框左下 corner_size * corner_size 矩形内通道像素的质心
     """
     x1, y1, x2, y2 = inner_bbox
 

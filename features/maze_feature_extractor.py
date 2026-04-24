@@ -127,7 +127,7 @@ def compute_F2_keypoint_hit_rate(
     user_mask: np.ndarray,
     solution_polyline: np.ndarray,
     sample_step: float = 40.0,
-    hit_radius: float = 12.0,
+    hit_radius: float = 17.0,
 ) -> Tuple[float, int, int, np.ndarray]:
     """
     沿 solution_polyline 按 sample_step 像素采样 K 个点；
@@ -170,7 +170,7 @@ def compute_F3_invalid_drawing(
     所以 channel_dist 在 illegal 上的求和自然体现了
     "错得多远就罚多重"——穿墙一格和画到纸外的惩罚力度自动拉开。
 
-    Q2 已确认：分母用全通道 channel_mask 面积，更稳定。
+    分母用全通道 channel_mask 面积，更稳定。
 
     迷宫无对称轴，故无 cross_penalty。
     """

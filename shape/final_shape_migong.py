@@ -14,9 +14,6 @@ def ensure_dir(path: str):
 
 
 def clear_directory(path: str):
-    """
-    清空输出目录下的所有文件和子目录；如果目录不存在则创建
-    """
     if os.path.exists(path):
         for name in os.listdir(path):
             full = os.path.join(path, name)
@@ -91,31 +88,23 @@ def put_roi_back(full_shape, roi_mask, rect):
 def extract_maze_lines_blackhat(maze_roi: np.ndarray, debug_dir=None) -> np.ndarray:
     gray = cv2.cvtColor(maze_roi, cv2.COLOR_BGR2GRAY)
 
-    # 1. CLAHE
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     gray_eq = clahe.apply(gray)
 
-    # 2. Blackhat（主通道）
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 9))
     blackhat = cv2.morphologyEx(gray_eq, cv2.MORPH_BLACKHAT, kernel)
 
-    # 3. blackhat 阈值
     _, mask_bh = cv2.threshold(blackhat, 12, 255, cv2.THRESH_BINARY)
-
-    # 4. 弱灰度补充
     _, mask_gray = cv2.threshold(gray_eq, 145, 255, cv2.THRESH_BINARY_INV)
 
     merged = cv2.bitwise_or(mask_bh, mask_gray)
 
-    # 5. 轻微定向补线
     h_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 1))
     v_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 5))
-
     merged_h = cv2.morphologyEx(merged, cv2.MORPH_CLOSE, h_kernel)
     merged_v = cv2.morphologyEx(merged, cv2.MORPH_CLOSE, v_kernel)
     merged = cv2.bitwise_or(merged_h, merged_v)
 
-    # 6. 去极小噪点
     merged = remove_small_components(merged, min_area=12)
 
     if debug_dir:
@@ -134,23 +123,18 @@ def extract_maze_lines_blackhat(maze_roi: np.ndarray, debug_dir=None) -> np.ndar
 # =========================
 
 def clean_corner_decorations(mask: np.ndarray, debug_dir=None) -> np.ndarray:
-    """
-    只清理右上角小猪和左下角房子的残留
-    """
     h, w = mask.shape
     cleaned = mask.copy()
 
-    # 右上角：小猪
     tr_x1, tr_y1 = int(0.88 * w), 0
     tr_x2, tr_y2 = w, int(0.09 * h)
 
-    # 左下角：房子
     bl_x1, bl_y1 = 0, int(0.91 * h)
     bl_x2, bl_y2 = int(0.1555 * w), h
 
     corners = [
-        ("top_right", tr_x1, tr_y1, tr_x2, tr_y2),
-        ("bottom_left", bl_x1, bl_y1, bl_x2, bl_y2),
+        ("top_right",    tr_x1, tr_y1, tr_x2, tr_y2),
+        ("bottom_left",  bl_x1, bl_y1, bl_x2, bl_y2),
     ]
 
     for name, x1, y1, x2, y2 in corners:
@@ -162,34 +146,25 @@ def clean_corner_decorations(mask: np.ndarray, debug_dir=None) -> np.ndarray:
         roi_out = roi.copy()
 
         for i in range(1, num_labels):
-            x = stats[i, cv2.CC_STAT_LEFT]
-            y = stats[i, cv2.CC_STAT_TOP]
-            ww = stats[i, cv2.CC_STAT_WIDTH]
-            hh = stats[i, cv2.CC_STAT_HEIGHT]
+            ww   = stats[i, cv2.CC_STAT_WIDTH]
+            hh   = stats[i, cv2.CC_STAT_HEIGHT]
             area = stats[i, cv2.CC_STAT_AREA]
 
-            box_area = max(ww * hh, 1)
+            box_area   = max(ww * hh, 1)
             fill_ratio = area / box_area
-            aspect = max(ww / max(hh, 1), hh / max(ww, 1))
+            aspect     = max(ww / max(hh, 1), hh / max(ww, 1))
 
             is_line_like = (
                 (ww >= 18 and hh <= 5) or
                 (hh >= 18 and ww <= 5) or
                 (aspect >= 4.0 and fill_ratio <= 0.55)
             )
-
             is_blob_like = (
                 (fill_ratio >= 0.50 and area >= 20) or
                 (ww >= 8 and hh >= 8 and aspect <= 2.5)
             )
 
-            remove = False
-            if is_blob_like and not is_line_like:
-                remove = True
-
-            if area < 10:
-                remove = True
-
+            remove = (is_blob_like and not is_line_like) or (area < 10)
             if remove:
                 roi_out[labels == i] = 0
 
@@ -207,9 +182,6 @@ def clean_corner_decorations(mask: np.ndarray, debug_dir=None) -> np.ndarray:
 # =========================
 
 def rebuild_outer_border(mask: np.ndarray, border_thickness: int = 2, inset: int = 0) -> np.ndarray:
-    """
-    在 ROI 内重建迷宫外框，修复角落清理误删的边框线
-    """
     h, w = mask.shape
     border = np.zeros_like(mask)
     x1, y1 = inset, inset
@@ -223,34 +195,24 @@ def rebuild_outer_border(mask: np.ndarray, border_thickness: int = 2, inset: int
 # =========================
 
 def remove_isolated_short_segments(mask: np.ndarray, max_len: int = 10, debug_dir=None) -> np.ndarray:
-    """
-    删除长度不超过 max_len 像素的孤立短线。
-    这里按连通域处理，删除满足以下条件的小组件：
-    - 面积较小
-    - 外接框长边 <= max_len
-    - 细线状，且不与大结构连接
-    """
     num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
     out = mask.copy()
-
     removed = np.zeros_like(mask)
 
     for i in range(1, num_labels):
-        x = stats[i, cv2.CC_STAT_LEFT]
-        y = stats[i, cv2.CC_STAT_TOP]
-        w = stats[i, cv2.CC_STAT_WIDTH]
-        h = stats[i, cv2.CC_STAT_HEIGHT]
+        w    = stats[i, cv2.CC_STAT_WIDTH]
+        h    = stats[i, cv2.CC_STAT_HEIGHT]
         area = stats[i, cv2.CC_STAT_AREA]
 
-        long_side = max(w, h)
+        long_side  = max(w, h)
         short_side = min(w, h)
-        box_area = max(w * h, 1)
+        box_area   = max(w * h, 1)
         fill_ratio = area / box_area
 
         is_short_segment = (
-            long_side <= max_len and
+            long_side  <= max_len and
             short_side <= 3 and
-            area <= max_len * 2 and
+            area       <= max_len * 2 and
             fill_ratio >= 0.2
         )
 
@@ -260,14 +222,14 @@ def remove_isolated_short_segments(mask: np.ndarray, max_len: int = 10, debug_di
 
     if debug_dir:
         ensure_dir(debug_dir)
-        cv2.imwrite(os.path.join(debug_dir, "9_removed_short_segments.png"), removed)
+        cv2.imwrite(os.path.join(debug_dir, "9_removed_short_segments.png"),  removed)
         cv2.imwrite(os.path.join(debug_dir, "10_after_remove_short_segments.png"), out)
 
     return out
 
 
 # =========================
-# 主函数
+# 主提取函数
 # =========================
 
 def extract_maze(image_path: str, out_dir: str):
@@ -279,45 +241,32 @@ def extract_maze(image_path: str, out_dir: str):
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Step 1: 找迷宫外框
     _, dark_mask = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY_INV)
     dark_mask = cv2.dilate(
         dark_mask,
         cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)),
-        iterations=1
+        iterations=1,
     )
 
     cnt, rect = keep_largest_rectangle_contour(dark_mask)
     if rect is None:
         raise RuntimeError("没有找到迷宫框")
 
-    # Step 2: 裁出 ROI
     maze_roi = crop_with_rect(img, rect)
     cv2.imwrite(os.path.join(out_dir, "maze_roi.png"), maze_roi)
 
     debug_dir = os.path.join(out_dir, "debug")
 
-    # Step 3: 提取迷宫线
     maze_mask_roi = extract_maze_lines_blackhat(maze_roi, debug_dir=debug_dir)
-
-    # Step 4: 清除角落装饰
     maze_mask_roi = clean_corner_decorations(maze_mask_roi, debug_dir=debug_dir)
     cv2.imwrite(os.path.join(debug_dir, "7_after_corner_cleanup.png"), maze_mask_roi)
 
-    # Step 5: 重建外框，恢复角落边框
     maze_mask_roi = rebuild_outer_border(maze_mask_roi, border_thickness=13, inset=0)
     cv2.imwrite(os.path.join(debug_dir, "8_after_rebuild_border.png"), maze_mask_roi)
 
-    # Step 6: 删除孤立短线
-    maze_mask_roi = remove_isolated_short_segments(
-        maze_mask_roi,
-        max_len=10,
-        debug_dir=debug_dir
-    )
+    maze_mask_roi = remove_isolated_short_segments(maze_mask_roi, max_len=10, debug_dir=debug_dir)
 
-    # Step 7: 回填到原图
     maze_mask_full = put_roi_back(img.shape, maze_mask_roi, rect)
-
     save_mask(maze_mask_full, os.path.join(out_dir, "maze_mask.png"))
 
     maze_only = apply_mask_to_image(img, maze_mask_full)
@@ -331,9 +280,9 @@ def extract_maze(image_path: str, out_dir: str):
 # =========================
 
 def main():
-    maze_image = "data/raw/34migong.png"
-    output_dir = "./output_maze/shape_maze"
-    extract_maze(maze_image, output_dir)
+    from config import GAME_CONFIGS
+    cfg = GAME_CONFIGS["maze"]
+    extract_maze(cfg["raw_image"], cfg["out_dir"])
 
 
 if __name__ == "__main__":

@@ -2,6 +2,9 @@
 阶段4.B：per-game robust z-score 归一化
 功能：基于 label=0 且可分析样本的 median/MAD 进行 robust z-score 归一化，
       并统一方向为"越大越异常"。
+
+python features/normalize.py --input data/feature/gate_decisions.csv --stats_out data/feature/normalize_stats.json
+
 """
 
 from __future__ import annotations

@@ -3,6 +3,9 @@
 功能：根据硬规则判断样本是否为"乱画"（不可分析样本）。
 输入：包含 F1..F4 特征的 DataFrame（含 sample_id, game, label）
 输出：追加 is_unanalyzable / triggered_rules / F3_zscore / F4_zscore 列
+
+python features/gate_unanalyzable.py --input data/feature/all.csv --output data/feature/gate_decisions.csv
+
 """
 
 from __future__ import annotations

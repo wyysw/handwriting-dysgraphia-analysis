@@ -1,6 +1,6 @@
 """
 测试脚本：验证 classifiers 包的正确性
-用法：python test_classifiers.py
+python test_classifiers.py
 """
 
 import sys

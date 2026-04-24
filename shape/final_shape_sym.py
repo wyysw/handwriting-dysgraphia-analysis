@@ -574,17 +574,15 @@ def extract_symmetry(
 
 
 def main():
-    # 修改成你的实际输入图片路径
-    sym_image = "data/raw/35duichen.png"
-    sym_out_dir = "./output_sym/shape_sym"
-
+    from config import GAME_CONFIGS
+    cfg = GAME_CONFIGS["sym"]
     extract_symmetry(
-        image_path=sym_image,
-        out_dir=sym_out_dir,
+        image_path=cfg["raw_image"],
+        out_dir=cfg["out_dir"],
         ignore_side_width=190,
         expected_width=1201,
         expected_height=1601,
-        ignore_mode="white"
+        ignore_mode="white",
     )
 
 

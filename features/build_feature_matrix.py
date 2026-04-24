@@ -12,14 +12,14 @@
        output/normalize_stats.json    # 归一化统计量
 
 用法：
-  python features/build_feature_matrix.py \
-      --feature_csv data/feature/all.csv \
-      --out_dir output/
+
+python features/build_feature_matrix.py --feature_csv data/feature/all.csv --out_dir data/feature
+
 
   # 如果特征分散在多个 JSON 目录中（阶段1-3的输出），改用：
   python features/build_feature_matrix.py \
-      --json_dirs output_sym/extract output_maze/extract output_circle/extract \
-      --labels data/raw/labels.csv \
+      --json_dirs data/feature/sym data/feature/maze data/feature/circle \
+      --labels "data/raw/labels.csv" \
       --out_dir output/
 """
 
