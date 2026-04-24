@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 /archive/
 /temp.md
+.vscode/*
+!.vscode/settings.json

@@ -1,7 +1,7 @@
 # 书写障碍分类实验——完整推进指导文档
 
-> **版本**： v3.1
-> 阶段三已完成，已设计后续
+> **版本**： v3.2
+> 实验已完成
 
 > **文档定位**：本文档是跨对话协作的主参考文档，整合实验设计与流程指导。
 > 在每次新对话开始时将本文档连同相关代码一起提供给 AI 助手，即可无缝延续工作。
@@ -60,9 +60,7 @@ circle_001,circle,1
 
 ---
 
-## 2. 预处理部分说明
-
-### 2.1 游戏面板预处理（已完成）
+## 2. 游戏面板预处理部分说明
 
 **作用**：从三张原始测评图提取标准参考结构，生成二值掩码。
 
@@ -76,78 +74,6 @@ circle_001,circle,1
 所有掩码均为 1201×1601 单通道 PNG，与原图像素级对齐。
 
 
-### 2.2 Pen模块（样本数据使用）
-
-**from pen import pen_trajectory_plotter**
-
-```python
-def plot_stroke(stroke_data, xlim, ylim, ax=None, fig=None, font_prop=None, stroke_index=None, color=None):
-    """
-    在给定的坐标轴上绘制单个笔画。
-
-    可重复调用以在同一个图上绘制多个笔画。
-
-    参数:
-    stroke_data (dict): 包含单个笔画数据的字典。
-                        必须包含 'x', 'y', 'pressure' 键。
-    xlim (tuple): (xmin, xmax) 用于设置X轴范围。
-    ylim (tuple): (ymin, ymax) 用于设置Y轴范围。
-    ax (matplotlib.axes.Axes, optional): 要绘制到的坐标轴对象。
-                                         如果为 None, 将创建新的图形和坐标轴。
-    fig (matplotlib.figure.Figure, optional): 与 ax 关联的图形对象。
-                                              仅在 ax 不为 None 时需要传递。
-    font_prop (matplotlib.font_manager.FontProperties, optional):
-              用于图表中文显示的字体属性。如果为 None, 将尝试自动查找。
-    stroke_index (str, optional): 当前笔画的标识符, 用于标题或调试显示。
-    color (tuple or str, optional): 指定笔画的颜色, 例如 (r, g, b) 或 'red'。
-                                    若为None, 则使用基于压力值的颜色映射(viridis)，压力高的点颜色较亮。
-
-    返回:
-    tuple: (fig, ax) 返回使用的图形和坐标轴对象。
-    """
-```
-
-**from pen import analyze**
-
-```python
-def load_trajectory_data(filepath, skip_rows=0):
-    """
-    从文件加载电子笔轨迹数据。
-    参数:
-        filepath (str): 数据文件路径。
-        skip_rows (int): 要跳过的文件开头行数。
-    返回:
-        dict or None: 成功时返回包含 'x', 'y', 'pressure' 的字典，失败时返回 None。
-    """
-```
-
-```python
-def split_into_strokes_simple(data):
-    """
-    根据压力值是否为0, 将连续点序列分割为多个笔画。
-    压力 > 0 表示笔尖落下, 压力 = 0 表示提笔。
-    参数： data —— 包含 x, y, pressure 的字典。
-    返回：列表，每个元素是一个笔画字典，包含该笔画的 x, y, pressure 数组。
-    遍历压力序列，当压力 > 0 时将点加入当前笔画，
-    当压力 = 0 且当前笔画非空时，保存当前笔画并开始新笔画。
-    最后将最后一个笔画也加入列表。
-    """
-```
-
-```python
-def calculate_adaptive_threshold(strokes, k=2.0, min_threshold=300.0, max_threshold=2500.0):
-    """
-    基于笔画中心点的平均最近邻距离计算自适应聚类阈值。原理：阈值 = k * (所有笔画到其最近邻笔画中心的平均距离)
-    优点：直接反映笔画空间密度，适应不同书写大小和风格。
-    Parameters:
-        strokes: 笔画列表List of stroke dicts with 'x', 'y'
-        k: 缩放系数，建议初始值 1.8~2.5 （可调）
-        min_threshold / max_threshold: 安全边界，防止极端值
-    Returns:
-        float: 计算出的自适应阈值
-    """
-```
-
 
 ## 3. 实验推进路线（按阶段）
 
@@ -158,11 +84,11 @@ def calculate_adaptive_threshold(strokes, k=2.0, min_threshold=300.0, max_thresh
    ↓
 阶段 3（已完成）   迷宫游戏特征提取器（圆形，与方形迷宫共用基类）
    ↓
-阶段 4（待完成）   特征汇总处理
+阶段 4（已完成）   特征汇总处理
    ↓
-阶段 5（待完成）   分类器设计与实现
+阶段 5（已完成）   分类器设计与实现
    ↓
-阶段 6（待完成）   实验评估
+阶段 6（已完成）   实验评估
 ```
 
 ---
@@ -180,11 +106,10 @@ python features/sym_feature_extractor.py --txt data/raw/sym/{id}.txt --png data/
 **目的**：对一个对称游戏样本，提取 7 个标准化特征（F1–F4, C1–C3），输出为 JSON。这是对称游戏的**核心特征计算程序**。
 
 **设计说明**：
-本程序不沿用 `sym_analyze3.py` 中的打分逻辑（其将成为加权分类器的基础），而是提取**原始指标值**（0–1 的比例或连续量），统一由阶段 3 的管道进行归一化。
+本程序提取**原始指标值**（0–1 的比例或连续量），统一由阶段4进行归一化。
 
-从 sym_analyze3.py 直接导入以下通用函数：
 
-| 导入函数 | 用途 |
+| 函数 | 用途 |
 |---|---|
 | `read_binary_mask`, `read_user_mask_png`, `pad_to_shape`, `bbox_from_mask` | 图像/mask IO |
 | `detect_helper_geometry` | 定位 axis_y、内网格线、step_x/y |
@@ -195,7 +120,7 @@ python features/sym_feature_extractor.py --txt data/raw/sym/{id}.txt --png data/
 | `extract_keypoints_from_target` | 网格交点关键点 |
 | `_extract_target_segments_from_hough` | 霍夫线段（用于 C1）|
 
-**不复用**的：`analyze_line_control`、`run_stage1`、`tolerant_f1`、`keypoint_coverage_score`
+
 
 ---
 
