@@ -2,11 +2,8 @@
 experiments/run_experiments.py
 阶段6：LOSO 评估主流程
 
-用法：
-    python experiments/run_experiments.py --feature_matrix output/feature_matrix.csv --gate_decisions output/gate_decisions.csv --out_dir results/
+python experiments/run_experiments.py --feature_matrix output/feature_matrix.csv --gate_decisions output/gate_decisions.csv --out_dir results/
 
-依赖：
-    pip install numpy pandas scikit-learn scipy matplotlib
 """
 
 import argparse

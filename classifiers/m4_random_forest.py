@@ -2,7 +2,8 @@
 4.5.5  M4：Random Forest（对照基线）
 =====================================
 sklearn RandomForestClassifier 的薄封装。
-作用：证明非线性模型未显著提升，支持"简单模型已够"的方法论主张。
+
+证明非线性模型未显著提升，支持"简单模型已够"的方法论主张。
 """
 
 from __future__ import annotations
