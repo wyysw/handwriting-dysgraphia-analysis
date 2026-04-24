@@ -77,7 +77,9 @@ python features/maze_feature_extractor.py --txt data/raw/circle/{id}.txt --png d
 # 六、
 
 ```
-python test_classifiers.py
-    python experiments/run_experiments.py --feature_matrix output/feature_matrix.csv --gate_decisions data/feature/gate_decisions.csv --out_dir results/
+python features/build_feature_matrix.py --feature_csv data/feature/all.csv --out_dir data/feature
+```
 
+```
+python experiments/run_experiments.py --feature_matrix data/feature/feature_matrix.csv --gate_decisions data/feature/gate_decisions.csv --out_dir results/
 ```
