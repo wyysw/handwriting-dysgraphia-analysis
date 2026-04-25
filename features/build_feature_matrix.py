@@ -13,7 +13,7 @@
 
 用法：
 
-python features/build_feature_matrix.py --feature_csv data/feature/all.csv --out_dir data/feature
+python 3_build_feature_matrix.py --feature_csv data/feature/all.csv --out_dir data/feature
 
 
   # 如果特征分散在多个 JSON 目录中（阶段1-3的输出），改用：

@@ -109,7 +109,10 @@ python features/maze_feature_extractor.py --txt data/raw/circle/{id}.txt --png d
 python features/build_feature_matrix.py --feature_csv data/feature/all.csv --out_dir data/feature
 
 # 运行分类器
-python experiments/run_experiments.py --feature_matrix data/feature/feature_matrix.csv --gate_decisions data/feature/gate_decisions.csv --out_dir results/
+python test_classifiers.py
+
+# 运行诊断
+python run_experiments.py --feature_matrix data/feature/all.csv --gate_decisions data/feature/gate_decisions.csv --out_dir results/
 
 
 ```
