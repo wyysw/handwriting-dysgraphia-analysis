@@ -1,0 +1,17 @@
+M3 L2 Logistic Regression 消融实验报告
+============================================================
+所有实验均使用相同 LOSO 协议；除消融组件外，其余流程保持一致。
+
+        experiment  auroc  auprc  f1_opt  threshold_opt  n_loso  n_gated  delta_auroc_vs_baseline  delta_auprc_vs_baseline  delta_f1_opt_vs_baseline
+          baseline 0.7988 0.8936  0.8636         0.3153      49       12                   0.0000                   0.0000                    0.0000
+  no_scribble_gate 0.7927 0.8804  0.8602         0.1936      61        0                  -0.0061                  -0.0133                   -0.0034
+    no_robust_norm 0.7976 0.9003  0.8312         0.5635      49       12                  -0.0012                   0.0067                   -0.0325
+ no_motor_features 0.8159 0.8974  0.8706         0.3493      49       12                   0.0171                   0.0038                    0.0070
+no_cross_game_norm 0.7500 0.8813  0.8200         0.1354      49       12                  -0.0488                  -0.0123                   -0.0436
+
+实验说明：
+- baseline: 原始三段式管道：乱画门控 + 按游戏 median/MAD 稳健归一化 + F1..C3 + 乱画 prob=1.0 旁路。
+- no_scribble_gate: 无乱画门控：全部样本进入 LOSO；不剔除乱画样本，也不使用 prob=1.0 旁路。
+- no_robust_norm: 无稳健归一化：按游戏使用训练折 label=0 参考池的 mean/std 替代 median/MAD。
+- no_motor_features: 无运动控制特征：仅使用 F1..F4，不使用 C1..C3。
+- no_cross_game_norm: 无按游戏归一化：跨所有 game 使用一组全局 z-score 统计量。
